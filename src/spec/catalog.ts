@@ -182,8 +182,15 @@ function authOf(security: Json[] | undefined, schemes: Json, csrfHeader: string 
   return result;
 }
 
+// Search APIs are often POST (a long query or filters in the body), but they only read. A POST
+// whose last path segment names a lookup is treated as a read; anything else that is not GET
+// stays a write until an agent or a person says otherwise.
+const LOOKUP_SEGMENT = /^(?:query|queries|search|searches|find|lookup|autocomplete|suggest|suggestions|typeahead)$/i;
+
 /** Default classification before the agent weighs in. */
 export function defaultKind(op: CatalogOperation): "read" | "write" | "auth" {
   if (op.providesAuth) return "auth";
-  return op.writes ? "write" : "read";
+  if (!op.writes) return "read";
+  const last = op.path.split("/").filter(Boolean).at(-1) ?? "";
+  return op.method === "POST" && !op.graphql && LOOKUP_SEGMENT.test(last) ? "read" : "write";
 }

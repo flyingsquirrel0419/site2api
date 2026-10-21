@@ -165,3 +165,16 @@ describe("API keys in headers", () => {
     }
   });
 });
+
+describe("default kinds", () => {
+  it("treats a POST to a lookup path as a read, and other POSTs as writes", () => {
+    const catalog = readCatalog(analyzeHar(capture("https://search.example.com")).spec);
+    const tools = buildTools(catalog, { version: 1, operations: {} });
+    expect(tools.tools.map((t) => [t.operationId, t.kind])).toEqual([["post_query", "read"]]);
+
+    const cart = har([1, 2].map((n) => ({ method: "POST", url: "https://shop.example.com/api/cart", requestBody: { productId: n } })));
+    expect(buildTools(readCatalog(analyzeHar(cart).spec), { version: 1, operations: {} }).skipped).toEqual([
+      { operationId: "post_cart", reason: "changes data (re-run generate with --allow-writes)" },
+    ]);
+  });
+});
