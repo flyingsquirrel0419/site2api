@@ -217,6 +217,7 @@ function ensureGraphqlPath(paths: Record<string, Record<string, unknown>>, op: O
         }
       : {}),
     security: securityRequirement(op.auth) ? [securityRequirement(op.auth)] : [],
+    "x-site2api": { graphqlEndpoint: true },
     responses: {
       "200": {
         description: "OK",

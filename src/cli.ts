@@ -2,7 +2,11 @@
 import { Command } from "commander";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { parse } from "yaml";
+import { annotationsJsonSchema } from "./infer/annotations.js";
+import { renderContext } from "./infer/context.js";
 import { analyzeHar } from "./pipeline.js";
+import { readCatalog } from "./spec/catalog.js";
 
 const program = new Command()
   .name("site2api")
@@ -33,6 +37,19 @@ program
     console.log(`site: ${result.filter.site}`);
     console.log(`kept ${result.filter.kept.length} requests → ${rest} REST + ${graphql} GraphQL operations`);
     console.log(`wrote ${join(opts.out, "openapi.yaml")} and ${join(opts.out, "report.md")}`);
+  });
+
+program
+  .command("infer-prompt")
+  .description("Write infer/context.md and infer/annotations.schema.json for your agent to annotate")
+  .argument("[dir]", "output directory of from-har", "out")
+  .action(async (dir: string) => {
+    const catalog = readCatalog(parse(await readFile(join(dir, "openapi.yaml"), "utf8")));
+    await mkdir(join(dir, "infer"), { recursive: true });
+    await writeFile(join(dir, "infer", "context.md"), renderContext(catalog));
+    await writeFile(join(dir, "infer", "annotations.schema.json"), JSON.stringify(annotationsJsonSchema(), null, 2) + "\n");
+    console.log(`wrote ${join(dir, "infer", "context.md")} (${catalog.operations.length} operations)`);
+    console.log(`next: read it, write ${join(dir, "annotations.json")}, then run: site2api generate ${dir}`);
   });
 
 program.parseAsync().catch((err: unknown) => {

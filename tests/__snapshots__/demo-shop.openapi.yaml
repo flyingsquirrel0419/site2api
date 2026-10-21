@@ -358,6 +358,8 @@ paths:
                 - query
       security:
         - cookie_sid: []
+      x-site2api:
+        graphqlEndpoint: true
       responses:
         "200":
           description: OK
