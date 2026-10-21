@@ -9,6 +9,7 @@ import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
 import { inferAnnotations, providerFromEnv, type ProviderName } from "./infer/llm/infer.js";
+import { LlmError } from "./infer/llm/provider.js";
 import { analyzeHar } from "./pipeline.js";
 import { assertNoFingerprintedSecrets } from "./redact.js";
 import { verify, type VerifyReport } from "./verify/verify.js";
@@ -149,31 +150,41 @@ program
   .option("--provider <name>", "anthropic or openai (OpenAI-compatible); inferred from env when omitted")
   .option("--model <id>", "model id (default: claude-opus-5-5 for anthropic; SITE2API_LLM_MODEL for openai)")
   .option("--force", "overwrite an existing annotations.json", false)
-  .action(async (dir: string, opts: { provider?: string; model?: string; force: boolean }) => {
-    if (opts.provider && opts.provider !== "anthropic" && opts.provider !== "openai") {
-      throw new Error(`--provider must be anthropic or openai, got "${opts.provider}"`);
-    }
-    if (!opts.force && (await readOptional(join(dir, ANNOTATIONS_FILE))) !== undefined) {
-      throw new Error(`${join(dir, ANNOTATIONS_FILE)} already exists; pass --force to replace it.`);
-    }
-    const catalog = await loadCatalog(dir);
-    const context = renderContext(catalog);
-    const fp = await loadFingerprint(dir);
-    if (fp) assertNoFingerprintedSecrets(context, fp, "the LLM request");
-
-    const provider = providerFromEnv(opts.provider as ProviderName | undefined, opts.model);
-    console.log(`annotating ${catalog.operations.length} operations with ${provider.label}…`);
-    const { annotations, attempts } = await inferAnnotations(catalog, provider, context);
-    const text = JSON.stringify(annotations, null, 2) + "\n";
-    if (fp) assertNoFingerprintedSecrets(text, fp, ANNOTATIONS_FILE);
-    await writeFile(join(dir, ANNOTATIONS_FILE), text);
-
-    for (const [id, a] of Object.entries(annotations.operations)) {
-      const label = a.include === false ? "excluded" : a.kind;
-      console.log(`  ${(a.tool ?? id).padEnd(28)} ${label}`);
-    }
-    console.log(`wrote ${join(dir, ANNOTATIONS_FILE)}${attempts > 1 ? ` after ${attempts} attempts` : ""}; review it, then: site2api generate ${dir}`);
+  .action(async (dir: string, opts: InferCliOptions) => {
+    await inferDir(dir, opts);
   });
+
+interface InferCliOptions {
+  provider?: string;
+  model?: string;
+  force: boolean;
+}
+
+async function inferDir(dir: string, opts: InferCliOptions) {
+  if (opts.provider && opts.provider !== "anthropic" && opts.provider !== "openai") {
+    throw new Error(`--provider must be anthropic or openai, got "${opts.provider}"`);
+  }
+  if (!opts.force && (await readOptional(join(dir, ANNOTATIONS_FILE))) !== undefined) {
+    throw new Error(`${join(dir, ANNOTATIONS_FILE)} already exists; pass --force to replace it.`);
+  }
+  const catalog = await loadCatalog(dir);
+  const context = renderContext(catalog);
+  const fp = await loadFingerprint(dir);
+  if (fp) assertNoFingerprintedSecrets(context, fp, "the LLM request");
+
+  const provider = providerFromEnv(opts.provider as ProviderName | undefined, opts.model);
+  console.log(`annotating ${catalog.operations.length} operations with ${provider.label}…`);
+  const { annotations, attempts } = await inferAnnotations(catalog, provider, context);
+  const text = JSON.stringify(annotations, null, 2) + "\n";
+  if (fp) assertNoFingerprintedSecrets(text, fp, ANNOTATIONS_FILE);
+  await writeFile(join(dir, ANNOTATIONS_FILE), text);
+
+  for (const [id, a] of Object.entries(annotations.operations)) {
+    const label = a.include === false ? "excluded" : a.kind;
+    console.log(`  ${(a.tool ?? id).padEnd(28)} ${label}`);
+  }
+  console.log(`wrote ${join(dir, ANNOTATIONS_FILE)}${attempts > 1 ? ` after ${attempts} attempts` : ""}; review it, then: site2api generate ${dir}`);
+}
 
 program
   .command("generate")
@@ -182,22 +193,26 @@ program
   .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
   .option("--only-verified", "keep only read tools that passed `site2api verify`", false)
   .action(async (dir: string, opts: { allowWrites: boolean; onlyVerified: boolean }) => {
-    const runtimePath = fileURLToPath(new URL("./runtime/server.mjs", import.meta.url));
-    try {
-      const result = await generate(dir, { allowWrites: opts.allowWrites, onlyVerified: opts.onlyVerified, runtimePath });
-      for (const w of result.warnings) console.warn(`warning: ${w}`);
-      console.log(`${result.tools.tools.length} tools, ${result.tools.skipped.length} skipped → ${result.outDir}`);
-      for (const t of result.tools.tools) console.log(`  ${t.kind === "write" ? "✎" : "·"} ${t.name}`);
-      console.log(`see ${join(result.outDir, "README.md")} to register it with your agent`);
-    } catch (err) {
-      if (err instanceof AnnotationsError) {
-        console.error(err.message);
-        console.error("Fix annotations.json and run generate again.");
-        process.exit(2);
-      }
-      throw err;
-    }
+    await generateDir(dir, opts);
   });
+
+async function generateDir(dir: string, opts: { allowWrites: boolean; onlyVerified: boolean }) {
+  const runtimePath = fileURLToPath(new URL("./runtime/server.mjs", import.meta.url));
+  try {
+    const result = await generate(dir, { allowWrites: opts.allowWrites, onlyVerified: opts.onlyVerified, runtimePath });
+    for (const w of result.warnings) console.warn(`warning: ${w}`);
+    console.log(`${result.tools.tools.length} tools, ${result.tools.skipped.length} skipped → ${result.outDir}`);
+    for (const t of result.tools.tools) console.log(`  ${t.kind === "write" ? "✎" : "·"} ${t.name}`);
+    console.log(`see ${join(result.outDir, "README.md")} to register it with your agent`);
+  } catch (err) {
+    if (err instanceof AnnotationsError) {
+      console.error(err.message);
+      console.error("Fix annotations.json and run generate again.");
+      process.exit(2);
+    }
+    throw err;
+  }
+}
 
 program
   .command("verify")
@@ -276,6 +291,39 @@ function printVerify(report: VerifyReport) {
   const s = report.summary;
   console.log(`\n${s.pass} passed, ${s.fail} failed, ${s.error} errors, ${s.skipped} skipped`);
 }
+
+program
+  .command("run")
+  .description("Record → analyze → annotate (if an LLM is configured) → verify → generate, in one go")
+  .argument("<url>", "where to start, e.g. https://app.example.com")
+  .option("-o, --out <dir>", "output directory", "out")
+  .option("--include-origin <host...>", "extra hosts or sites to keep")
+  .option("--profile-dir <dir>", "browser profile to use (keeps your login between runs)", DEFAULT_PROFILE_DIR)
+  .option("--provider <name>", "LLM for annotations: anthropic or openai (default: from env; skipped if none)")
+  .option("--model <id>", "LLM model id")
+  .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
+  .option("--discard-har", "delete the recording after analysis", false)
+  .action(async (url: string, opts: RecordCliOptions & { provider?: string; model?: string; allowWrites: boolean }) => {
+    const dir = opts.out;
+    console.log("── 1/4 record");
+    const cookie = await recordToDir(url, opts);
+
+    console.log("\n── 2/4 annotate");
+    try {
+      await inferDir(dir, { provider: opts.provider, model: opts.model, force: true });
+    } catch (err) {
+      if (!(err instanceof LlmError)) throw err;
+      console.warn(`skipped: ${err.message}`);
+      console.warn(`Tools keep heuristic names. To improve them later: site2api infer ${dir}, or ask your agent (site2api skill).`);
+    }
+
+    console.log("\n── 3/4 verify");
+    await verifyDir(dir, { rate: "1", cookie });
+
+    console.log("\n── 4/4 generate");
+    await generateDir(dir, { allowWrites: opts.allowWrites, onlyVerified: true });
+    console.log("\nDone. Register the server with your agent (see the README above) and set SITE2API_COOKIE in its config.");
+  });
 
 program.parseAsync().catch((err: unknown) => {
   console.error(`site2api: ${err instanceof Error ? err.message : String(err)}`);

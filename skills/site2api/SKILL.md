@@ -19,6 +19,12 @@ in step 4: naming tools, describing them, and deciding which ones are safe to ex
   about collecting other people's data at scale, or getting around bot protection, stop and say
   site2api does not do that.
 
+## Shortcut
+
+If the user just wants it done and has an LLM API key configured (`ANTHROPIC_API_KEY`, or
+`SITE2API_LLM_BASE_URL` + `SITE2API_LLM_MODEL`), `site2api run <url> -o out` does steps 1–6 in
+one go. Use the steps below when there is no key, so that you write the annotations yourself.
+
 ## Running the CLI
 
 Use `npx site2api <command>`. If that fails because the package is not published yet and you
@@ -27,17 +33,23 @@ instead. The steps below write `site2api` for either form.
 
 ## Steps
 
-### 1. Get a HAR file
+### 1. Capture the traffic
 
-Ask the user for the path. If they have none, tell them how to record one:
+If the user already has a HAR file, use it in step 2. Otherwise record one:
 
-1. Open the site in Chrome and log in.
-2. Open DevTools → Network, and check "Preserve log".
-3. Use the features they want as tools (search, open a list, open an item, …). Two or more
-   examples of each make the result better.
-4. Right-click the request list → "Save all as HAR with content".
+```bash
+site2api record <url> -o out
+```
 
-Remind them the HAR contains their login session and should not be shared or committed.
+A browser window opens on a separate site2api profile. Tell the user: log in if needed, use each
+feature they want as a tool two or more times (search, open a list, open an item, …), then
+**close the tab** to finish. Your command returns when they do, and it already runs step 2.
+
+To make a HAR without site2api instead: DevTools → Network → check "Preserve log" → use the
+site → right-click the request list → "Save all as HAR with content".
+
+Either way, remind them the recording contains their login session and must not be shared or
+committed.
 
 ### 2. Analyze
 
@@ -45,7 +57,7 @@ Remind them the HAR contains their login session and should not be shared or com
 site2api from-har <file.har> -o out
 ```
 
-Read `out/report.md`. If it found no operations, or the site is wrong, the recording probably
+(Skip this after `record`, which already did it.) Read `out/report.md`. If it found no operations, or the site is wrong, the recording probably
 missed the API calls. Ask the user to record again while using the features, or pass
 `--include-origin <api-host>` when the API lives on another domain.
 
@@ -78,17 +90,32 @@ For each operation, decide:
 
 Skip anything you cannot judge from the context; the defaults still work.
 
-### 5. Generate
+### 5. Verify
 
 ```bash
-site2api generate out
+site2api verify out --profile
 ```
+
+This calls every read-only operation against the live site and checks the responses. `--profile`
+uses the login saved in the record browser profile. If everything that needs a login is
+`skipped` (the site uses session cookies, which end with the browser), tell the user they can run
+`SITE2API_COOKIE='<Cookie header>' site2api verify out` in their own terminal. Don't run it for
+them with a cookie, and don't ask for one. Explain any `fail` results: usually the site changed,
+or the schema was built from too few samples.
+
+### 6. Generate
+
+```bash
+site2api generate out --only-verified
+```
+
+Use `--only-verified` when verify passed the tools the user cares about. Otherwise drop the flag.
 
 If it prints validation errors, fix exactly those fields in `annotations.json` and run it again.
 Add `--allow-writes` only if the user explicitly wants tools that change data. Those tools still
 require `confirm: true` on every call, and you must get the user's approval for each such call.
 
-### 6. Hand it over
+### 7. Hand it over
 
 Show the user the tool list that `generate` printed, and point them to `out/mcp/README.md`. It
 has the snippet for their client: `.cursor/mcp.json` for Cursor, `claude mcp add` for Claude
