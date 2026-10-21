@@ -1,0 +1,242 @@
+<template>
+  <style>
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-800.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-900.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: block; }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      container-type: size;
+      color: #eef1f8;
+    }
+    #root * {
+      box-sizing: border-box;
+    }
+    .s05-ground {
+      position: absolute;
+      inset: 0;
+      background: #0b0d14;
+    }
+    .s05-layer {
+      position: absolute;
+      inset: 0;
+    }
+    .s05-stage {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 83cqh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .s05-wordmark {
+      font-family: "Barlow", sans-serif;
+      font-weight: 900;
+      font-size: 13cqw;
+      line-height: 0.88;
+      letter-spacing: -0.04em;
+      text-transform: lowercase;
+      color: #eef1f8;
+      white-space: nowrap;
+      transform-origin: 50% 60%;
+      will-change: transform, opacity;
+    }
+    .s05-two {
+      color: #8b6cff;
+    }
+    .s05-pill {
+      margin-top: 3.5cqw;
+      display: flex;
+      align-items: center;
+      gap: 1.4cqw;
+      padding: 1.5cqw 2.4cqw;
+      background: #18181a;
+      border: 1px solid #262628;
+      border-radius: 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 400;
+      font-size: 2.5cqw;
+      line-height: 1;
+      white-space: pre;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity;
+    }
+    .s05-pill-inner {
+      display: flex;
+      align-items: baseline;
+      gap: 1.4cqw;
+      white-space: pre;
+    }
+    .s05-prompt {
+      color: #8b6cff;
+      font-weight: 700;
+    }
+    .s05-text-wrap {
+      display: inline-flex;
+      align-items: baseline;
+      min-width: 23ch;
+      white-space: pre;
+    }
+    .s05-text {
+      white-space: pre;
+      color: #eef1f8;
+    }
+    .s05-cursor {
+      display: inline-block;
+      width: 0.58em;
+      height: 0.92em;
+      margin-left: 0.06em;
+      vertical-align: -0.12em;
+      background: #5ee3c1;
+      opacity: 0;
+    }
+    .s05-repo {
+      margin-top: 2.2cqw;
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 400;
+      font-size: 1.4cqw;
+      letter-spacing: 0.06em;
+      color: rgba(238, 241, 248, 0.55);
+      white-space: nowrap;
+      will-change: transform, opacity;
+    }
+  </style>
+
+  <div data-hf-id="hf-il84"
+    id="root"
+    data-composition-id="05-cta"
+    data-start="0"
+    data-duration="2.5"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div data-hf-id="hf-b021" class="clip s05-ground" data-start="0" data-duration="2.5" data-track-index="0"></div>
+
+    <div data-hf-id="hf-jyy8" class="clip s05-layer" data-start="0" data-duration="2.5" data-track-index="1">
+      <div data-hf-id="hf-pg0v" class="s05-stage">
+        <div data-hf-id="hf-bqnj" class="s05-wordmark" id="s05-wordmark">site<span data-hf-id="hf-ivba" class="s05-two">2</span>api</div>
+
+        <div data-hf-id="hf-sqaa" class="s05-pill" id="s05-pill">
+          <div data-hf-id="hf-l1vu" class="s05-pill-inner" id="s05-pill-inner">
+            <span data-hf-id="hf-yoys" class="s05-prompt">$</span>
+            <span data-hf-id="hf-3ojs" class="s05-text-wrap"><span data-hf-id="hf-ddk3" class="s05-text" id="s05-text"></span><span data-hf-id="hf-8xwr" class="s05-cursor" id="s05-cursor"></span></span>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-8m6j" class="s05-repo" id="s05-repo">github.com/flyingsquirrel0419/site2api</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      window.__timelines = window.__timelines || {};
+
+      var DURATION = 2.5;
+      var tl = gsap.timeline({ paused: true });
+
+      var root = document.querySelector('[data-composition-id="05-cta"]');
+      var textEl = root.querySelector("#s05-text");
+      var cursorEl = root.querySelector("#s05-cursor");
+
+      // Scene 1 (0.0-0.8s): wordmark settles, smooth register (power3.out, no overshoot)
+      tl.fromTo(
+        "#s05-wordmark",
+        { scale: 0, opacity: 0, y: 12 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.65, ease: "power3.out" },
+        0.05
+      );
+
+      // Scene 2 (0.8-2.0s): terminal pill grows under the wordmark
+      tl.fromTo(
+        "#s05-pill",
+        { scaleX: 0.04, scaleY: 0.6, opacity: 0 },
+        { scaleX: 1, scaleY: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+        0.8
+      );
+      tl.fromTo(
+        "#s05-pill-inner",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.12, ease: "none" },
+        1.0
+      );
+
+      // Typed command: discrete per-keystroke schedule, short pauses at word breaks
+      var CMD = "npx site2api run <url>";
+      var T_TYPE = 1.1;
+      var STEP = 0.03;
+      var SPACE_PAUSE = 0.06;
+      var SEQUENCE = [{ t: 0, text: "" }];
+      var tCursor = T_TYPE;
+      for (var i = 0; i < CMD.length; i++) {
+        SEQUENCE.push({ t: tCursor, text: CMD.slice(0, i + 1) });
+        tCursor += STEP + (CMD[i] === " " ? SPACE_PAUSE : 0);
+      }
+      var CHANGE_TIMES = SEQUENCE.slice(1).map(function (e) {
+        return e.t;
+      });
+      var TYPING_GRACE = 0.15;
+      var CURSOR_ON_AT = 1.02;
+      var BLINK_CYCLES = 5; // whole number over DURATION -> 0.5s period
+
+      function textAt(time) {
+        for (var j = SEQUENCE.length - 1; j >= 0; j--) {
+          if (time >= SEQUENCE[j].t) return SEQUENCE[j].text;
+        }
+        return "";
+      }
+
+      // One linear driver: text state + seek-safe caret (solid while typing, square-wave blink at idle)
+      var driver = { t: 0 };
+      tl.fromTo(
+        driver,
+        { t: 0 },
+        {
+          t: DURATION,
+          duration: DURATION,
+          ease: "none",
+          onUpdate: function () {
+            var now = driver.t;
+            textEl.textContent = textAt(now);
+            if (now < CURSOR_ON_AT) {
+              cursorEl.style.opacity = "0";
+              return;
+            }
+            var typing = CHANGE_TIMES.some(function (ct) {
+              return ct <= now && now - ct < TYPING_GRACE;
+            });
+            var p = (Math.PI * 2 * BLINK_CYCLES * now) / DURATION;
+            cursorEl.style.opacity = typing || now < T_TYPE ? "1" : Math.sin(p) > 0 ? "1" : "0";
+          },
+        },
+        0
+      );
+
+      // Scene 3 (2.0-2.5s): quiet repo line, then hold on the blinking caret
+      tl.fromTo(
+        "#s05-repo",
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" },
+        2.0
+      );
+
+      window.__timelines["05-cta"] = tl;
+    })();
+  </script>
+</template>

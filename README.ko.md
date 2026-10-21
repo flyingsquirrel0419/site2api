@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="브라우저에서 hn.algolia.com을 검색하면 site2api가 검증된 검색 도구 2개로 만들고, 에이전트가 이번 주 Rust 소식을 답하는 모습" width="860">
-  <br><sub>hn.algolia.com 실제 실행: 사이트를 쓰면 → 검증된 검색 도구 2개 → 에이전트가 이번 주 글로 답변. (에이전트: Cursor CLI + Grok, 길이에 맞춰 편집. <a href="docs/assets/demo.mp4">고화질 영상</a>)</sub>
+  <img src="docs/assets/demo.gif" alt="스캐너 빔이 웹사이트 카드를 엑스레이처럼 훑자 숨은 API 호출이 검증된 도구 세 개가 되어 MCP로 에이전트에 연결되는 모습" width="860">
+  <br><sub>모든 웹사이트에는 이미 API가 있습니다. site2api가 그걸 꺼내고, 검증해서, 에이전트에게 넘겨줍니다. (<a href="docs/assets/demo.mp4">고화질 영상</a>)</sub>
 </p>
 
 ---
@@ -172,7 +172,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-데모는 `node demo/video/render.mjs`로 재현할 수 있습니다(장면은 `demo/video/`). 다른 에이전트에서 스킬 테스트하기:
+데모는 `demo/motion/`에 있는 [HyperFrames](https://github.com/heygen-com/hyperframes) 프로젝트입니다. 다시 렌더하는 방법은 그 폴더의 README에 있습니다. 다른 에이전트에서 스킬 테스트하기:
 [docs/testing-skill.md](docs/testing-skill.md).
 
 ## 라이선스

@@ -15,8 +15,8 @@ Usa el sitio una vez. Tu agente obtiene herramientas reales para él, comprobada
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="Una búsqueda en hn.algolia.com, site2api convirtiéndola en dos herramientas de búsqueda verificadas y un agente respondiendo sobre Rust con las historias de esta semana" width="860">
-  <br><sub>Una ejecución real en hn.algolia.com: usas el sitio → 2 herramientas de búsqueda verificadas → un agente responde con las historias de esta semana. (Agente: Cursor CLI con Grok; editado para acortarlo. <a href="docs/assets/demo.mp4">Video en HD</a>)</sub>
+  <img src="docs/assets/demo.gif" alt="Un haz de escáner recorre como rayos X una tarjeta de sitio web; sus llamadas ocultas a la API se convierten en tres herramientas verificadas que se conectan a un agente por MCP" width="860">
+  <br><sub>Todo sitio web ya tiene una API. site2api la extrae, la verifica y se la entrega a tu agente. (<a href="docs/assets/demo.mp4">Video en HD</a>)</sub>
 </p>
 
 ---
@@ -172,7 +172,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-La demo es reproducible: `node demo/video/render.mjs` (escenas en `demo/video/`). Para probar la skill en otro agente:
+La demo es un proyecto de [HyperFrames](https://github.com/heygen-com/hyperframes) en `demo/motion/`; su README explica cómo volver a renderizarla. Para probar la skill en otro agente:
 [docs/testing-skill.md](docs/testing-skill.md).
 
 ## Licencia

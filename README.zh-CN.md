@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="在浏览器里搜索 hn.algolia.com，site2api 把它变成两个已验证的搜索工具，智能体用本周的文章回答关于 Rust 的问题" width="860">
-  <br><sub>在 hn.algolia.com 上的真实运行：使用网站 → 2 个已验证的搜索工具 → 智能体用本周的文章作答。（智能体：Cursor CLI + Grok；按时长剪辑。<a href="docs/assets/demo.mp4">高清视频</a>）</sub>
+  <img src="docs/assets/demo.gif" alt="扫描光束像 X 光一样扫过网站卡片，隐藏的 API 调用变成三个已验证的工具，并通过 MCP 接入智能体" width="860">
+  <br><sub>每个网站都已经有 API。site2api 把它找出来、验证好，再交给你的智能体。（<a href="docs/assets/demo.mp4">高清视频</a>）</sub>
 </p>
 
 ---
@@ -166,7 +166,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-演示可以复现：`node demo/video/render.mjs`（场景在 `demo/video/`）。在其他智能体中测试这个 Skill：
+演示是 `demo/motion/` 中的 [HyperFrames](https://github.com/heygen-com/hyperframes) 项目，重新渲染的方法见该目录的 README。在其他智能体中测试这个 Skill：
 [docs/testing-skill.md](docs/testing-skill.md)。
 
 ## 许可证

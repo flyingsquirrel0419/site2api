@@ -1,0 +1,399 @@
+<template>
+  <div data-hf-id="hf-3hrh" id="root" data-composition-id="02-xray" data-start="0" data-duration="5" data-width="1920" data-height="1080" data-fps="30">
+    <style>
+      @font-face {
+        font-family: "Barlow";
+        font-weight: 700;
+        font-style: normal;
+        src: url("assets/fonts/Barlow-700.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-weight: 500;
+        font-style: normal;
+        src: url("assets/fonts/IBMPlexMono-500.woff2") format("woff2");
+      }
+
+      #root {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        container-type: size;
+        isolation: isolate;
+        color: #eef1f8;
+        font-family: "Barlow", sans-serif;
+      }
+      #root *,
+      #root *::before,
+      #root *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* ground — full-bleed clip layer, never on #root */
+      .\30 2-xray-ground {
+        position: absolute;
+        inset: 0;
+        background: #0b0d14;
+      }
+      .\30 2-xray-grid {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.55;
+      }
+
+      .\30 2-xray-stage {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* ── the website card: two stacked renderings (solid over wireframe) ── */
+      .\30 2-xray-card {
+        --dof: 0px;
+        position: absolute;
+        left: 528px;
+        top: 210px;
+        width: 864px;
+        height: 440px;
+        filter: blur(var(--dof));
+        will-change: filter, opacity;
+        z-index: 1;
+      }
+      .\30 2-xray-face {
+        position: absolute;
+        inset: 0;
+      }
+      .\30 2-xray-face > div {
+        position: absolute;
+      }
+      /* solid face */
+      .\30 2-xray-solid {
+        background: #18181a;
+        border: 1px solid #262628;
+        will-change: clip-path;
+      }
+      .\30 2-xray-solid .\30 2-xray-head { background: #262628; }
+      .\30 2-xray-solid .\30 2-xray-dot { background: #4a4850; }
+      .\30 2-xray-solid .\30 2-xray-field { background: #0b0d14; border: 1px solid #262628; }
+      .\30 2-xray-solid .\30 2-xray-row { border-top: 1px solid #262628; }
+      .\30 2-xray-solid .\30 2-xray-thumb { background: #262628; }
+      .\30 2-xray-solid .\30 2-xray-bar { background: #4a4850; }
+      .\30 2-xray-solid .\30 2-xray-bar.\30 2-xray-dim { background: #262628; }
+      /* wireframe face — fills dropped to hairline outlines */
+      .\30 2-xray-wire {
+        background: transparent;
+        border: 1px solid rgba(139, 108, 255, 0.85);
+      }
+      .\30 2-xray-wire .\30 2-xray-head { border-bottom: 1px solid rgba(139, 108, 255, 0.6); }
+      .\30 2-xray-wire .\30 2-xray-dot { border: 1px solid rgba(139, 108, 255, 0.7); }
+      .\30 2-xray-wire .\30 2-xray-field { border: 1px solid rgba(139, 108, 255, 0.9); }
+      .\30 2-xray-wire .\30 2-xray-row { border: 1px solid rgba(139, 108, 255, 0.55); }
+      .\30 2-xray-wire .\30 2-xray-thumb { border: 1px solid rgba(238, 241, 248, 0.35); }
+      .\30 2-xray-wire .\30 2-xray-bar { border: 1px solid rgba(238, 241, 248, 0.35); }
+
+      /* card internals (card-relative px) */
+      .\30 2-xray-head { left: 0; top: 0; width: 100%; height: 56px; }
+      .\30 2-xray-dot { top: 22px; width: 12px; height: 12px; }
+      .\30 2-xray-field { left: 48px; top: 96px; width: 768px; height: 64px; }
+      .\30 2-xray-row { left: 48px; width: 768px; height: 72px; }
+      .\30 2-xray-thumb { width: 44px; height: 44px; }
+      .\30 2-xray-bar { height: 12px; }
+
+      /* ── scanner beam + traveling glow ── */
+      .\30 2-xray-glow {
+        position: absolute;
+        left: -150px;
+        top: 150px;
+        width: 300px;
+        height: 560px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(110, 70, 255, 0.9) 0%, rgba(110, 70, 255, 0.35) 40%, rgba(110, 70, 255, 0) 72%);
+        opacity: 0;
+        z-index: 2;
+        pointer-events: none;
+      }
+      .\30 2-xray-beam {
+        position: absolute;
+        left: -1px;
+        top: 150px;
+        width: 3px;
+        height: 560px;
+        background: #8b6cff;
+        transform-origin: 50% 50%;
+        z-index: 3;
+      }
+
+      /* ── request lines ── */
+      .\30 2-xray-lines {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: visible;
+        z-index: 4;
+      }
+      .\30 2-xray-lines path {
+        fill: none;
+        stroke: #8b6cff;
+        stroke-width: 2;
+        stroke-linecap: square;
+        stroke-linejoin: miter;
+      }
+      .\30 2-xray-lines rect {
+        fill: #8b6cff;
+      }
+      .\30 2-xray-label {
+        position: absolute;
+        left: 640px;
+        height: 40px;
+        line-height: 40px;
+        margin-top: -20px;
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 500;
+        font-size: 1.56cqw;
+        letter-spacing: 0.02em;
+        white-space: pre;
+        color: #eef1f8;
+        z-index: 5;
+      }
+      .\30 2-xray-verb { color: #8b6cff; }
+
+      /* ── headline (h2) ── */
+      .\30 2-xray-headline {
+        position: absolute;
+        left: 5.5cqw;
+        top: 60px;
+        font-family: "Barlow", sans-serif;
+        font-weight: 700;
+        font-size: 4.5cqw;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        text-transform: lowercase;
+        white-space: nowrap;
+        color: #eef1f8;
+        z-index: 6;
+      }
+      .\30 2-xray-word {
+        display: inline-block;
+        margin-right: 0.24em;
+      }
+      .\30 2-xray-word:last-child { margin-right: 0; }
+      .\30 2-xray-accent { color: #8b6cff; }
+    </style>
+
+    <!-- ground (track 0) -->
+    <div data-hf-id="hf-rne3" id="02-xray-ground" class="02-xray-ground clip" data-start="0" data-duration="5" data-track-index="0">
+      <svg data-hf-id="hf-zw00" class="02-xray-grid" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs data-hf-id="hf-mh0t">
+          <pattern data-hf-id="hf-g3hv" id="02-xray-gridpat" width="120" height="120" patternUnits="userSpaceOnUse" x="0" y="10">
+            <path data-hf-id="hf-8ep8" d="M 120 0 L 0 0 0 120" fill="none" stroke="#262628" stroke-width="1" />
+          </pattern>
+        </defs>
+        <rect data-hf-id="hf-76k8" width="1920" height="1080" fill="url(#02-xray-gridpat)" />
+      </svg>
+    </div>
+
+    <!-- stage (track 1) -->
+    <div data-hf-id="hf-7wlw" id="02-xray-stage" class="02-xray-stage clip" data-start="0" data-duration="5" data-track-index="1">
+      <div data-hf-id="hf-pcyq" id="02-xray-card" class="02-xray-card">
+        <!-- wireframe rendering (revealed behind the beam) -->
+        <div data-hf-id="hf-g172" class="02-xray-face 02-xray-wire">
+          <div data-hf-id="hf-s90u" class="02-xray-head"></div>
+          <div data-hf-id="hf-2s1o" class="02-xray-dot" style="left: 24px"></div>
+          <div data-hf-id="hf-kge6" class="02-xray-dot" style="left: 44px"></div>
+          <div data-hf-id="hf-2os0" class="02-xray-dot" style="left: 64px"></div>
+          <div data-hf-id="hf-yeyr" class="02-xray-bar" style="left: 680px; top: 22px; width: 136px"></div>
+          <div data-hf-id="hf-j62k" class="02-xray-field"></div>
+          <div data-hf-id="hf-l9m5" class="02-xray-bar" style="left: 76px; top: 122px; width: 220px"></div>
+          <div data-hf-id="hf-zebh" class="02-xray-row" style="top: 196px"></div>
+          <div data-hf-id="hf-qbyg" class="02-xray-thumb" style="left: 62px; top: 210px"></div>
+          <div data-hf-id="hf-0blo" class="02-xray-bar" style="left: 128px; top: 218px; width: 360px"></div>
+          <div data-hf-id="hf-rtfm" class="02-xray-bar" style="left: 128px; top: 240px; width: 220px"></div>
+          <div data-hf-id="hf-obed" class="02-xray-row" style="top: 286px"></div>
+          <div data-hf-id="hf-x6fu" class="02-xray-thumb" style="left: 62px; top: 300px"></div>
+          <div data-hf-id="hf-2gsg" class="02-xray-bar" style="left: 128px; top: 308px; width: 300px"></div>
+          <div data-hf-id="hf-z7gy" class="02-xray-bar" style="left: 128px; top: 330px; width: 260px"></div>
+          <div data-hf-id="hf-z6jh" class="02-xray-row" style="top: 376px"></div>
+          <div data-hf-id="hf-xibp" class="02-xray-thumb" style="left: 62px; top: 390px"></div>
+          <div data-hf-id="hf-a9vo" class="02-xray-bar" style="left: 128px; top: 398px; width: 400px"></div>
+          <div data-hf-id="hf-3sgf" class="02-xray-bar" style="left: 128px; top: 420px; width: 180px"></div>
+        </div>
+        <!-- solid rendering (clipped away left of the beam) -->
+        <div data-hf-id="hf-t8w1" id="02-xray-solid" class="02-xray-face 02-xray-solid">
+          <div data-hf-id="hf-gqsy" class="02-xray-head"></div>
+          <div data-hf-id="hf-x3as" class="02-xray-dot" style="left: 24px"></div>
+          <div data-hf-id="hf-5mua" class="02-xray-dot" style="left: 44px"></div>
+          <div data-hf-id="hf-rpag" class="02-xray-dot" style="left: 64px"></div>
+          <div data-hf-id="hf-m1u1" class="02-xray-bar 02-xray-dim" style="left: 680px; top: 22px; width: 136px"></div>
+          <div data-hf-id="hf-o1ro" class="02-xray-field"></div>
+          <div data-hf-id="hf-5f87" class="02-xray-bar 02-xray-dim" style="left: 76px; top: 122px; width: 220px"></div>
+          <div data-hf-id="hf-4h8x" class="02-xray-row" style="top: 196px"></div>
+          <div data-hf-id="hf-lif4" class="02-xray-thumb" style="left: 62px; top: 210px"></div>
+          <div data-hf-id="hf-tt10" class="02-xray-bar" style="left: 128px; top: 218px; width: 360px"></div>
+          <div data-hf-id="hf-ef0g" class="02-xray-bar 02-xray-dim" style="left: 128px; top: 240px; width: 220px"></div>
+          <div data-hf-id="hf-0wyx" class="02-xray-row" style="top: 286px"></div>
+          <div data-hf-id="hf-8wse" class="02-xray-thumb" style="left: 62px; top: 300px"></div>
+          <div data-hf-id="hf-9jeg" class="02-xray-bar" style="left: 128px; top: 308px; width: 300px"></div>
+          <div data-hf-id="hf-30zo" class="02-xray-bar 02-xray-dim" style="left: 128px; top: 330px; width: 260px"></div>
+          <div data-hf-id="hf-3vu9" class="02-xray-row" style="top: 376px"></div>
+          <div data-hf-id="hf-6aft" class="02-xray-thumb" style="left: 62px; top: 390px"></div>
+          <div data-hf-id="hf-t4fw" class="02-xray-bar" style="left: 128px; top: 398px; width: 400px"></div>
+          <div data-hf-id="hf-b3hp" class="02-xray-bar 02-xray-dim" style="left: 128px; top: 420px; width: 180px"></div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-dllm" id="02-xray-glow" class="02-xray-glow"></div>
+      <div data-hf-id="hf-b0o2" id="02-xray-beam" class="02-xray-beam"></div>
+
+      <!-- request lines: each leaves a source element in the card and drops to its endpoint row -->
+      <svg data-hf-id="hf-drmb" class="02-xray-lines" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- source: search field → y 760 -->
+        <rect data-hf-id="hf-t5cg" id="02-xray-src-0" x="610" y="312" width="12" height="12" />
+        <path data-hf-id="hf-oixj" id="02-xray-path-0" d="M 616 318 L 616 760 L 628 760" />
+        <rect data-hf-id="hf-y8ap" id="02-xray-node-0" x="622" y="754" width="12" height="12" />
+        <!-- source: result row 1 → y 820 -->
+        <rect data-hf-id="hf-fhrz" id="02-xray-src-1" x="594" y="416" width="12" height="12" />
+        <path data-hf-id="hf-3hn6" id="02-xray-path-1" d="M 600 422 L 600 820 L 628 820" />
+        <rect data-hf-id="hf-hwh1" id="02-xray-node-1" x="622" y="814" width="12" height="12" />
+        <!-- source: result row 2 → y 880 -->
+        <rect data-hf-id="hf-4jse" id="02-xray-src-2" x="578" y="506" width="12" height="12" />
+        <path data-hf-id="hf-t77d" id="02-xray-path-2" d="M 584 512 L 584 880 L 628 880" />
+        <rect data-hf-id="hf-orne" id="02-xray-node-2" x="622" y="874" width="12" height="12" />
+      </svg>
+
+      <div data-hf-id="hf-1naz" id="02-xray-label-0" class="02-xray-label" style="top: 760px"><span data-hf-id="hf-lj2u" class="02-xray-verb"></span><span data-hf-id="hf-6g7s" class="02-xray-route"></span></div>
+      <div data-hf-id="hf-sypj" id="02-xray-label-1" class="02-xray-label" style="top: 820px"><span data-hf-id="hf-eg8q" class="02-xray-verb"></span><span data-hf-id="hf-3lrk" class="02-xray-route"></span></div>
+      <div data-hf-id="hf-2qpo" id="02-xray-label-2" class="02-xray-label" style="top: 880px"><span data-hf-id="hf-eujr" class="02-xray-verb"></span><span data-hf-id="hf-2euh" class="02-xray-route"></span></div>
+
+      <div data-hf-id="hf-alwi" id="02-xray-headline" class="02-xray-headline">
+        <span data-hf-id="hf-igdc" class="02-xray-word 02-xray-accent">site2api</span><span data-hf-id="hf-vhc3" class="02-xray-word">finds</span><span data-hf-id="hf-mm5u" class="02-xray-word">it.</span>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        "use strict";
+        var $ = function (id) { return document.getElementById(id); };
+
+        var CARD_LEFT = 528;
+        var CARD_W = 864;
+
+        var card = $("02-xray-card");
+        var solid = $("02-xray-solid");
+        var beam = $("02-xray-beam");
+        var glow = $("02-xray-glow");
+
+        var tl = gsap.timeline({ paused: true });
+
+        /* ── Scene 1 (0.0–0.8): card already in place (handoff); beam enters at card's left edge ── */
+        gsap.set(beam, { x: CARD_LEFT });
+        gsap.set(glow, { x: CARD_LEFT });
+        solid.style.clipPath = "inset(0px 0px 0px 0px)";
+        tl.fromTo(beam, { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.55, ease: "power3.out" }, 0.2);
+
+        /* ── Scene 2 (0.8–2.6): one long power3 sweep; wireframe behind the beam; glow travels with it ── */
+        var scan = { p: 0 };
+        tl.fromTo(
+          scan,
+          { p: 0 },
+          {
+            p: 1,
+            duration: 1.8,
+            ease: "power3.inOut",
+            onUpdate: function () {
+              var dx = scan.p * CARD_W;
+              var x = CARD_LEFT + dx;
+              gsap.set(beam, { x: x });
+              gsap.set(glow, { x: x });
+              solid.style.clipPath = "inset(0px 0px 0px " + dx.toFixed(2) + "px)";
+            },
+          },
+          0.8,
+        );
+        // ambient-glow-bloom, traveling-sweep form: bounded to the sweep window only
+        tl.fromTo(glow, { opacity: 0 }, { opacity: 0.32, duration: 0.4, ease: "power1.out" }, 0.8);
+        tl.to(glow, { opacity: 0, duration: 0.4, ease: "power1.in" }, 2.2);
+
+        /* ── Scene 3 (2.6–3.8): beam clears the card; three request lines self-draw, labels type in ── */
+        tl.to(beam, { opacity: 0, scaleY: 0.2, duration: 0.3, ease: "power2.in" }, 2.6);
+
+        var ENDPOINTS = [
+          { verb: "GET ", route: "/api/search" },
+          { verb: "GET ", route: "/api/orders" },
+          { verb: "GET ", route: "/api/orders/{id}" },
+        ];
+        var DRAW_DUR = 0.42;
+        var STEP = 0.34; // ~80% of the previous draw
+        var LINE_START = 2.62;
+
+        ENDPOINTS.forEach(function (ep, i) {
+          var path = $("02-xray-path-" + i);
+          var src = $("02-xray-src-" + i);
+          var node = $("02-xray-node-" + i);
+          var label = $("02-xray-label-" + i);
+          var verbEl = label.getElementsByClassName("02-xray-verb")[0];
+          var routeEl = label.getElementsByClassName("02-xray-route")[0];
+          var len = path.getTotalLength() * 1.02;
+          path.style.strokeDasharray = String(len);
+          path.style.strokeDashoffset = String(len);
+
+          var t0 = LINE_START + i * STEP;
+          tl.fromTo(src, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "power1.out" }, t0);
+          tl.fromTo(path, { strokeDashoffset: len }, { strokeDashoffset: 0, duration: DRAW_DUR, ease: "power2.out" }, t0);
+          tl.fromTo(node, { opacity: 0 }, { opacity: 1, duration: 0.1, ease: "power1.out" }, t0 + DRAW_DUR * 0.8);
+
+          // typed label — DOM written only when the visible char count changes
+          var full = ep.verb + ep.route;
+          var typed = { n: 0 };
+          var last = -1;
+          var typeDur = Math.min(0.5, full.length * 0.026);
+          tl.fromTo(
+            typed,
+            { n: 0 },
+            {
+              n: full.length,
+              duration: typeDur,
+              ease: "none",
+              onUpdate: function () {
+                var c = Math.round(typed.n);
+                if (c === last) return;
+                last = c;
+                var s = full.slice(0, c);
+                verbEl.textContent = s.slice(0, ep.verb.length);
+                routeEl.textContent = s.slice(ep.verb.length);
+              },
+            },
+            t0 + DRAW_DUR * 0.85,
+          );
+        });
+
+        /* ── Scene 4 (3.8–4.5): headline reveals top-left; card defocuses so the endpoints lead ── */
+        // dynamic-content-sequencing: per-word starts computed from word length
+        var words = Array.prototype.slice.call(document.getElementById("02-xray-headline").getElementsByClassName("02-xray-word"));
+        var HEAD_START = 3.8;
+        var BASE = 0.06;
+        var SEC_PER_CHAR = 0.018;
+        var cursor = HEAD_START;
+        words.forEach(function (w) {
+          tl.fromTo(w, { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.38, ease: "power3.out" }, cursor);
+          cursor += BASE + w.textContent.length * SEC_PER_CHAR;
+        });
+
+        // depth-of-field-blur, focal pull on the card only
+        tl.fromTo(card, { "--dof": "0px", opacity: 1 }, { "--dof": "4px", opacity: 0.55, duration: 0.6, ease: "power2.inOut" }, 3.8);
+
+        // hold to the end of the frame
+        tl.to({}, { duration: 0.01 }, 4.49);
+
+        tl.seek(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["02-xray"] = tl;
+      })();
+    </script>
+  </div>
+</template>

@@ -1,0 +1,13 @@
+site2api — Turn any website you use into a verified MCP server.
+
+Message: Every website already has an API. site2api pulls it out for your agent.
+
+Most sites you use every day have no public API. Their own frontend talks to a private API,
+but your agent can't see it. site2api watches that API while you use the site, finds the
+endpoints, the inputs and where they come from, and the login, checks every read-only tool
+against the live site, and hands your agent an MCP server.
+
+Pipeline: record → normalize → trace → infer (name tools) → verify → generate.
+Example tools: search_stories, get_order, list_orders.
+Install line: npx site2api run <url>
+Repo: github.com/flyingsquirrel0419/site2api

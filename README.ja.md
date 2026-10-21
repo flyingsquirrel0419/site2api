@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="ブラウザで hn.algolia.com を検索すると site2api が検証済みの検索ツール 2 つに変え、エージェントが今週の Rust の話題に答える様子" width="860">
-  <br><sub>hn.algolia.com での実際の実行: サイトを使う → 検証済みの検索ツール 2 個 → エージェントが今週の記事で回答。（エージェント: Cursor CLI + Grok、尺に合わせて編集。<a href="docs/assets/demo.mp4">高画質動画</a>）</sub>
+  <img src="docs/assets/demo.gif" alt="スキャナーのビームがウェブサイトのカードを X 線のように走査し、隠れた API 呼び出しが検証済みのツール 3 つになって MCP でエージェントにつながる様子" width="860">
+  <br><sub>どのウェブサイトにも、すでに API があります。site2api がそれを取り出し、検証して、エージェントに渡します。（<a href="docs/assets/demo.mp4">高画質動画</a>）</sub>
 </p>
 
 ---
@@ -172,7 +172,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-デモは `node demo/video/render.mjs` で再現できます（シーンは `demo/video/`）。他のエージェントでスキルをテストする方法:
+デモは `demo/motion/` にある [HyperFrames](https://github.com/heygen-com/hyperframes) プロジェクトです。再レンダリングの方法はそのフォルダーの README にあります。他のエージェントでスキルをテストする方法:
 [docs/testing-skill.md](docs/testing-skill.md)
 
 ## ライセンス

@@ -1,0 +1,401 @@
+<template>
+  <div data-hf-id="hf-qq8f" id="root" data-composition-id="03-tools" data-width="1920" data-height="1080" data-duration="4.5">
+    <style>
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-800.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: block; }
+      @font-face { font-family: "Barlow"; src: url("assets/fonts/Barlow-900.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: block; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: block; }
+
+      #root {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        container-type: size;
+        font-family: "Barlow", sans-serif;
+        color: #eef1f8;
+      }
+      #root *,
+      #root *::before,
+      #root *::after {
+        box-sizing: border-box;
+      }
+
+      .t03-ground {
+        position: absolute;
+        inset: 0;
+        background: #0b0d14;
+      }
+      .t03-stage {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* ── handoff_in: endpoint lines (left at x 640, centers y 760/820/880) ── */
+      .t03-line {
+        position: absolute;
+        left: 640px;
+        width: 640px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        transform-origin: 50% 50%;
+        z-index: 2;
+      }
+      .t03-line-a { top: 740px; }
+      .t03-line-b { top: 800px; }
+      .t03-line-c { top: 860px; }
+      .t03-line-label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: #8b6cff;
+        white-space: nowrap;
+      }
+      .t03-line-rule {
+        flex: 1;
+        height: 2px;
+        background: #8b6cff;
+      }
+
+      /* ── handoff_out: cards, centers x 560/960/1360, y 460 ── */
+      .t03-card {
+        position: absolute;
+        top: 330px;
+        width: 360px;
+        height: 260px;
+        background: #18181a;
+        border: 1px solid #262628;
+        transform-origin: 50% 50%;
+        z-index: 3;
+        padding: 30px 30px 28px;
+        display: flex;
+        flex-direction: column;
+      }
+      .t03-card-a { left: 380px; }
+      .t03-card-b { left: 780px; }
+      .t03-card-c { left: 1180px; }
+      .t03-stub {
+        position: absolute;
+        top: -1px;
+        left: -1px;
+        width: 36px;
+        height: 2px;
+        background: #8b6cff;
+      }
+      .t03-stub-done {
+        background: #5ee3c1;
+        opacity: 0;
+      }
+      .t03-kicker {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #8b6cff;
+      }
+      .t03-name {
+        margin-top: 22px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 31px;
+        font-weight: 600;
+        color: #eef1f8;
+        white-space: nowrap;
+      }
+      .t03-meta {
+        margin-top: 10px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 16px;
+        font-weight: 400;
+        color: rgba(238, 241, 248, 0.5);
+        white-space: nowrap;
+      }
+      .t03-badge-wrap {
+        position: relative;
+        margin-top: auto;
+        width: 196px;
+        height: 50px;
+      }
+      .t03-badge {
+        position: absolute;
+        inset: 0;
+        transform-origin: 50% 50%;
+      }
+      .t03-badge-state {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        transform-origin: 50% 50%;
+      }
+      .t03-pending {
+        border: 1px solid #3a3a40;
+        color: rgba(238, 241, 248, 0.58);
+        z-index: 1;
+      }
+      .t03-pending-dot {
+        width: 10px;
+        height: 10px;
+        border: 1px solid rgba(238, 241, 248, 0.45);
+        border-radius: 50%;
+      }
+      .t03-done {
+        background: #5ee3c1;
+        color: #0b0d14;
+        z-index: 2;
+        opacity: 0;
+      }
+      .t03-done svg {
+        width: 22px;
+        height: 22px;
+        flex: none;
+      }
+      .t03-check {
+        fill: none;
+        stroke: #0b0d14;
+        stroke-width: 3;
+        stroke-linecap: square;
+        stroke-linejoin: miter;
+        stroke-dasharray: 26;
+        stroke-dashoffset: 26;
+      }
+      .t03-ring {
+        position: absolute;
+        inset: 0;
+        border: 1px solid #5ee3c1;
+        opacity: 0;
+        transform-origin: 50% 50%;
+        z-index: 0;
+      }
+
+      /* ── headline (scene 3) ── */
+      .t03-head {
+        position: absolute;
+        left: 380px;
+        top: 168px;
+        font-family: "Barlow", sans-serif;
+        font-size: 86px;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+        color: #eef1f8;
+      }
+      .t03-word {
+        display: inline-block;
+        margin-right: 0.22em;
+      }
+      .t03-word-accent {
+        color: #8b6cff;
+      }
+    </style>
+
+    <div data-hf-id="hf-pxt6" class="t03-ground clip" data-start="0" data-duration="4.5" data-track-index="0"></div>
+
+    <div data-hf-id="hf-o7s2" class="t03-stage clip" data-start="0" data-duration="4.5" data-track-index="1">
+      <div data-hf-id="hf-hghu" class="t03-head" id="t03-head">
+        <span data-hf-id="hf-gooh" class="t03-word">real</span><span data-hf-id="hf-tjv6" class="t03-word">tools.</span><span data-hf-id="hf-l13u" class="t03-word t03-word-accent">verified</span><span data-hf-id="hf-qw76" class="t03-word t03-word-accent">live.</span>
+      </div>
+
+      <div data-hf-id="hf-cfqg" class="t03-line t03-line-a" id="t03-line-a">
+        <span data-hf-id="hf-i00e" class="t03-line-label">GET /api/search</span><span data-hf-id="hf-mhii" class="t03-line-rule"></span>
+      </div>
+      <div data-hf-id="hf-dj5k" class="t03-line t03-line-b" id="t03-line-b">
+        <span data-hf-id="hf-w4nz" class="t03-line-label">GET /api/orders</span><span data-hf-id="hf-36y6" class="t03-line-rule"></span>
+      </div>
+      <div data-hf-id="hf-rycc" class="t03-line t03-line-c" id="t03-line-c">
+        <span data-hf-id="hf-gtob" class="t03-line-label">GET /api/orders/{id}</span><span data-hf-id="hf-3l97" class="t03-line-rule"></span>
+      </div>
+
+      <div data-hf-id="hf-bb3k" class="t03-card t03-card-a" id="t03-card-a">
+        <span data-hf-id="hf-7cf9" class="t03-stub"></span><span data-hf-id="hf-guxo" class="t03-stub t03-stub-done"></span>
+        <div data-hf-id="hf-8utw" class="t03-kicker">Tool 01</div>
+        <div data-hf-id="hf-5shn" class="t03-name">search_stories</div>
+        <div data-hf-id="hf-xk45" class="t03-meta">GET /api/search</div>
+        <div data-hf-id="hf-34ka" class="t03-badge-wrap">
+          <div data-hf-id="hf-of3a" class="t03-ring"></div>
+          <div data-hf-id="hf-y7gp" class="t03-badge">
+            <div data-hf-id="hf-y87m" class="t03-badge-state t03-pending"><span data-hf-id="hf-dhbg" class="t03-pending-dot"></span>checking…</div>
+            <div data-hf-id="hf-jnez" class="t03-badge-state t03-done">
+              <svg data-hf-id="hf-ulu9" viewBox="0 0 24 24"><path data-hf-id="hf-775g" class="t03-check" d="M4 12.5 L9.5 18 L20 6.5" /></svg>verified
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-z0d8" class="t03-card t03-card-b" id="t03-card-b">
+        <span data-hf-id="hf-p3w9" class="t03-stub"></span><span data-hf-id="hf-mums" class="t03-stub t03-stub-done"></span>
+        <div data-hf-id="hf-7nwt" class="t03-kicker">Tool 02</div>
+        <div data-hf-id="hf-865r" class="t03-name">list_orders</div>
+        <div data-hf-id="hf-p1aw" class="t03-meta">GET /api/orders</div>
+        <div data-hf-id="hf-2i9q" class="t03-badge-wrap">
+          <div data-hf-id="hf-g7oq" class="t03-ring"></div>
+          <div data-hf-id="hf-rdq5" class="t03-badge">
+            <div data-hf-id="hf-u2c6" class="t03-badge-state t03-pending"><span data-hf-id="hf-o2h0" class="t03-pending-dot"></span>checking…</div>
+            <div data-hf-id="hf-a65n" class="t03-badge-state t03-done">
+              <svg data-hf-id="hf-1tol" viewBox="0 0 24 24"><path data-hf-id="hf-32mk" class="t03-check" d="M4 12.5 L9.5 18 L20 6.5" /></svg>verified
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-mh68" class="t03-card t03-card-c" id="t03-card-c">
+        <span data-hf-id="hf-qatc" class="t03-stub"></span><span data-hf-id="hf-lnpp" class="t03-stub t03-stub-done"></span>
+        <div data-hf-id="hf-827u" class="t03-kicker">Tool 03</div>
+        <div data-hf-id="hf-zkjo" class="t03-name">get_order</div>
+        <div data-hf-id="hf-75da" class="t03-meta">GET /api/orders/{id}</div>
+        <div data-hf-id="hf-2wkr" class="t03-badge-wrap">
+          <div data-hf-id="hf-glzr" class="t03-ring"></div>
+          <div data-hf-id="hf-skn8" class="t03-badge">
+            <div data-hf-id="hf-ugn7" class="t03-badge-state t03-pending"><span data-hf-id="hf-mvjx" class="t03-pending-dot"></span>checking…</div>
+            <div data-hf-id="hf-9rum" class="t03-badge-state t03-done">
+              <svg data-hf-id="hf-30lo" viewBox="0 0 24 24"><path data-hf-id="hf-1vph" class="t03-check" d="M4 12.5 L9.5 18 L20 6.5" /></svg>verified
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        const root = document.querySelector('[data-composition-id="03-tools"]');
+        const q = (sel) => root.querySelector(sel);
+        const qa = (sel) => Array.from(root.querySelectorAll(sel));
+        const tl = gsap.timeline({ paused: true });
+
+        // ── Scene 1 (0.0–1.4s): lines lift into cards — scale-swap-transition ──
+        // Line row center sits at x 960 (640 + 640/2); travel lands it on its card center.
+        const PAIRS = [
+          { line: "#t03-line-a", card: "#t03-card-a", lineY: 760, cardX: 560 },
+          { line: "#t03-line-b", card: "#t03-card-b", lineY: 820, cardX: 960 },
+          { line: "#t03-line-c", card: "#t03-card-c", lineY: 880, cardX: 1360 },
+        ];
+        const CARD_Y = 460;
+        const TRAVEL_START = 0.12;
+        const STAGGER = 0.14;
+        const TRAVEL_DUR = 0.62;
+        const EXIT_DUR = 0.32; // outgoing shrink + fade (tail of travel)
+        const OVERLAP = 0.14;
+        const ENTER_DUR = 0.56;
+        const EXIT_SCALE = 0.7;
+        const BOUNCE = 1.6;
+
+        PAIRS.forEach((p, i) => {
+          const t0 = TRAVEL_START + i * STAGGER;
+          const trigger = t0 + TRAVEL_DUR - EXIT_DUR;
+          const lineEl = q(p.line);
+          const cardEl = q(p.card);
+
+          tl.fromTo(
+            lineEl,
+            { x: 0, y: 0 },
+            { x: p.cardX - 960, y: CARD_Y - p.lineY, duration: TRAVEL_DUR, ease: "power3.inOut" },
+            t0,
+          );
+          tl.fromTo(
+            lineEl,
+            { scale: 1, opacity: 1 },
+            { scale: EXIT_SCALE, opacity: 0, duration: EXIT_DUR, ease: "power2.in" },
+            trigger,
+          );
+          tl.fromTo(
+            cardEl,
+            { scale: EXIT_SCALE, opacity: 0 },
+            { scale: 1, opacity: 1, duration: ENTER_DUR, ease: "back.out(" + BOUNCE + ")" },
+            trigger + EXIT_DUR - OVERLAP,
+          );
+          // inner content reveals after the card settles
+          const inner = Array.from(cardEl.querySelectorAll(".t03-kicker, .t03-name, .t03-meta, .t03-badge-wrap"));
+          tl.fromTo(
+            inner,
+            { opacity: 0, y: 10 },
+            { opacity: 1, y: 0, duration: 0.3, ease: "power3.out", stagger: 0.04 },
+            trigger + EXIT_DUR - OVERLAP + 0.16,
+          );
+        });
+
+        // ── Scene 2 (1.4–2.8s): badges flip left→right — press-release-spring (state change at release) ──
+        const PRESS_DUR = 0.12;
+        const RELEASE_DUR = 0.5;
+        const PRESS_SCALE = 0.92;
+        const CUES = [1.5, 1.9, 2.3];
+        PAIRS.forEach((p, i) => {
+          const cardEl = q(p.card);
+          const badge = cardEl.querySelector(".t03-badge");
+          const pending = cardEl.querySelector(".t03-pending");
+          const done = cardEl.querySelector(".t03-done");
+          const check = cardEl.querySelector(".t03-check");
+          const ring = cardEl.querySelector(".t03-ring");
+          const stubDone = cardEl.querySelector(".t03-stub-done");
+          const press = CUES[i];
+          const release = press + PRESS_DUR;
+
+          // press (linear compression) → release (spring back), adjacent for state continuity
+          tl.fromTo(badge, { scale: 1 }, { scale: PRESS_SCALE, duration: PRESS_DUR, ease: "power1.in" }, press);
+          tl.to(badge, { scale: 1, duration: RELEASE_DUR, ease: "back.out(1.6)" }, release);
+
+          // state swap at release: grey pending out, teal verified in
+          tl.fromTo(pending, { opacity: 1 }, { opacity: 0, duration: 0.14, ease: "power2.in" }, release - 0.04);
+          tl.fromTo(
+            done,
+            { opacity: 0, scale: 0.86 },
+            { opacity: 1, scale: 1, duration: 0.42, ease: "back.out(1.8)" },
+            release,
+          );
+          tl.fromTo(check, { strokeDashoffset: 26 }, { strokeDashoffset: 0, duration: 0.28, ease: "power2.out" }, release + 0.08);
+
+          // flat release ring (hairline burst behind the badge)
+          tl.fromTo(ring, { scale: 1, opacity: 0 }, { scale: 1.28, opacity: 0.7, duration: 0.24, ease: "power2.out" }, release);
+          tl.to(ring, { opacity: 0, scale: 1.4, duration: 0.3, ease: "power2.in" }, release + 0.24);
+
+          // card's accent stub turns teal
+          tl.fromTo(stubDone, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" }, release);
+        });
+
+        // ── Scene 3 (2.8–4.0s): headline words sequenced — dynamic-content-sequencing ──
+        const WORDS = qa(".t03-word");
+        const BASE_DURATION = 0.05;
+        const SEC_PER_CHAR = 0.012;
+        const HEAD_START = 2.8;
+        let cumulative = HEAD_START;
+        const SEQ = WORDS.map((el) => {
+          const start = cumulative;
+          cumulative += BASE_DURATION + el.textContent.length * SEC_PER_CHAR;
+          return { el, start };
+        });
+        SEQ.forEach((entry) => {
+          tl.fromTo(
+            entry.el,
+            { opacity: 0, y: 28 },
+            { opacity: 1, y: 0, duration: 0.36, ease: "power3.out" },
+            entry.start,
+          );
+        });
+
+        // pad to full duration (hold still)
+        tl.set({}, {}, 4);
+
+        window.__timelines["03-tools"] = tl;
+      })();
+    </script>
+  </div>
+</template>
