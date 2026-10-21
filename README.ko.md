@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="site2api run이 쇼핑몰을 녹화하고, 도구 6개를 검증하고, MCP 서버를 생성한 뒤, 에이전트가 그 서버로 질문에 답하는 모습" width="860">
-  <br><sub>공개 API가 없는 쇼핑몰 → 검증된 도구 6개 → 에이전트가 그 도구로 답변. (에이전트: Cursor CLI + Grok, 2.5배속)</sub>
+  <img src="docs/assets/demo.gif" alt="브라우저에서 hn.algolia.com을 검색하면 site2api가 검증된 검색 도구 2개로 만들고, 에이전트가 이번 주 Rust 소식을 답하는 모습" width="860">
+  <br><sub>hn.algolia.com 실제 실행: 사이트를 쓰면 → 검증된 검색 도구 2개 → 에이전트가 이번 주 글로 답변. (에이전트: Cursor CLI + Grok, 길이에 맞춰 편집. <a href="docs/assets/demo.mp4">고화질 영상</a>)</sub>
 </p>
 
 ---
@@ -172,7 +172,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-데모 GIF는 `vhs demo/demo.tape`로 재현할 수 있습니다. 다른 에이전트에서 스킬 테스트하기:
+데모는 `node demo/video/render.mjs`로 재현할 수 있습니다(장면은 `demo/video/`). 다른 에이전트에서 스킬 테스트하기:
 [docs/testing-skill.md](docs/testing-skill.md).
 
 ## 라이선스

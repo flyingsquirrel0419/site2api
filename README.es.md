@@ -15,8 +15,8 @@ Usa el sitio una vez. Tu agente obtiene herramientas reales para él, comprobada
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="site2api run graba una tienda, verifica seis herramientas, genera un servidor MCP y un agente responde una pregunta con él" width="860">
-  <br><sub>Una tienda sin API pública → 6 herramientas verificadas → un agente responde a partir de ella. (Agente: Cursor CLI con Grok; acelerado 2,5×).</sub>
+  <img src="docs/assets/demo.gif" alt="Una búsqueda en hn.algolia.com, site2api convirtiéndola en dos herramientas de búsqueda verificadas y un agente respondiendo sobre Rust con las historias de esta semana" width="860">
+  <br><sub>Una ejecución real en hn.algolia.com: usas el sitio → 2 herramientas de búsqueda verificadas → un agente responde con las historias de esta semana. (Agente: Cursor CLI con Grok; editado para acortarlo. <a href="docs/assets/demo.mp4">Video en HD</a>)</sub>
 </p>
 
 ---
@@ -172,7 +172,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-El GIF de la demo es reproducible: `vhs demo/demo.tape`. Para probar la skill en otro agente:
+La demo es reproducible: `node demo/video/render.mjs` (escenas en `demo/video/`). Para probar la skill en otro agente:
 [docs/testing-skill.md](docs/testing-skill.md).
 
 ## Licencia

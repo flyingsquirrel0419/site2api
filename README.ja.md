@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="site2api run がショップを記録し、6 つのツールを検証して MCP サーバーを生成、エージェントがそれを使って質問に答える様子" width="860">
-  <br><sub>公開 API のないショップ → 検証済みツール 6 個 → エージェントがそこから回答。（エージェント: Cursor CLI + Grok、2.5 倍速）</sub>
+  <img src="docs/assets/demo.gif" alt="ブラウザで hn.algolia.com を検索すると site2api が検証済みの検索ツール 2 つに変え、エージェントが今週の Rust の話題に答える様子" width="860">
+  <br><sub>hn.algolia.com での実際の実行: サイトを使う → 検証済みの検索ツール 2 個 → エージェントが今週の記事で回答。（エージェント: Cursor CLI + Grok、尺に合わせて編集。<a href="docs/assets/demo.mp4">高画質動画</a>）</sub>
 </p>
 
 ---
@@ -172,7 +172,7 @@ pnpm demo          # the demo shop on :4317
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-デモ GIF は `vhs demo/demo.tape` で再現できます。他のエージェントでスキルをテストする方法:
+デモは `node demo/video/render.mjs` で再現できます（シーンは `demo/video/`）。他のエージェントでスキルをテストする方法:
 [docs/testing-skill.md](docs/testing-skill.md)
 
 ## ライセンス

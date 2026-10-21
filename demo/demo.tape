@@ -1,9 +1,9 @@
-# Records docs/assets/demo.gif. Run from the repo root after `pnpm build`:
+# Records docs/assets/demo-terminal.gif (the terminal-only demo; the README uses demo/video/). Run from the repo root after `pnpm build`:
 #   vhs demo/demo.tape
 # Needs VHS (brew install vhs) and the Cursor CLI logged in (`cursor agent`, then `cursor-agent login`).
 # The agent scene uses Cursor's CLI with Grok; any MCP client that reads mcp.json works the same way.
 
-Output docs/assets/demo.gif
+Output docs/assets/demo-terminal.gif
 
 Set Shell "bash"
 Set FontSize 16
