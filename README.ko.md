@@ -176,6 +176,8 @@ pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capt
 데모는 `demo/motion/`에 있는 [HyperFrames](https://github.com/heygen-com/hyperframes) 프로젝트입니다. 다시 렌더하는 방법은 그 폴더의 README에 있습니다. 다른 에이전트에서 스킬 테스트하기:
 [docs/testing-skill.md](docs/testing-skill.md).
 
+기여를 환영합니다. [CONTRIBUTING.md](CONTRIBUTING.md), [행동 강령](CODE_OF_CONDUCT.md), 취약점 신고는 [SECURITY.md](SECURITY.md), 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 보세요.
+
 ## 라이선스
 
 MIT

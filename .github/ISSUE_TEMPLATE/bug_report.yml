@@ -1,0 +1,51 @@
+name: Bug report
+description: site2api crashed, printed something wrong, or generated a broken server.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste or attach a HAR file, a cookie, a token or an API key.** A HAR is a
+        recording of your logged-in session. `report.md` and `verify.json` are safe to share.
+        Security problems go to [SECURITY.md](https://github.com/flyingsquirrel0419/site2api/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and output
+      description: The command line and the terminal output. Remove any URL query values that are personal.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Ideally a few lines of `har()` from `tests/helpers.ts`, or the demo shop steps that trigger it.
+  - type: input
+    id: version
+    attributes:
+      label: site2api version or commit
+      placeholder: "0.0.1, or a commit like d85385e"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Node version and OS
+      placeholder: "Node 22.12, macOS 15"
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Check
+      options:
+        - label: This issue contains no HAR file, cookie, token, API key or other credential.
+          required: true

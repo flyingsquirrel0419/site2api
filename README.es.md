@@ -176,6 +176,8 @@ pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capt
 La demo es un proyecto de [HyperFrames](https://github.com/heygen-com/hyperframes) en `demo/motion/`; su README explica cómo volver a renderizarla. Para probar la skill en otro agente:
 [docs/testing-skill.md](docs/testing-skill.md).
 
+Las contribuciones son bienvenidas: consulta [CONTRIBUTING.md](CONTRIBUTING.md), el [código de conducta](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md) para informar de vulnerabilidades y el [registro de cambios](CHANGELOG.md).
+
 ## Licencia
 
 MIT

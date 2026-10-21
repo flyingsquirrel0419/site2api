@@ -1,0 +1,62 @@
+name: Site doesn't work
+description: site2api ran, but the tools for a site are missing, wrong, or fail verify.
+labels: [site-support]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not attach the HAR.** It contains your session and can be replayed by anyone who
+        reads it. Share `report.md` and the `verify` output instead; both are free of credential
+        values. Never paste cookies, tokens or keys, even partly.
+
+        site2api is for your own accounts at a human pace. Requests to get past CAPTCHAs, bot
+        detection or rate limits will be closed.
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: The site's domain, or the kind of site if you'd rather not say.
+      placeholder: "hn.algolia.com, or a self-hosted wiki"
+    validations:
+      required: true
+  - type: textarea
+    id: did
+    attributes:
+      label: What you recorded
+      description: The actions you took in the browser, and how many times each.
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is missing or wrong
+      description: For example, "the search call was not found", "orderId should come from list_orders", "verify fails with 401".
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: report.md
+      description: Paste out/report.md.
+      render: markdown
+  - type: textarea
+    id: verify
+    attributes:
+      label: verify output
+      description: The table printed by `site2api verify`, or out/verify.json.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: site2api version or commit
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Check
+      options:
+        - label: This issue contains no HAR file, cookie, token, API key or other credential.
+          required: true
+        - label: I only recorded my own account, at a normal human pace.
+          required: true

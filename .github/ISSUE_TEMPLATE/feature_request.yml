@@ -1,0 +1,28 @@
+name: Feature request
+description: An idea for site2api.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to do, and where site2api gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would like to happen. Commands, outputs or config you imagine are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you use now, or other tools that do this.
+  - type: markdown
+    attributes:
+      value: |
+        Features that get past CAPTCHAs or bot detection, crawl or scrape in bulk, or store
+        credential values are out of scope. See [CONTRIBUTING.md](https://github.com/flyingsquirrel0419/site2api/blob/main/CONTRIBUTING.md#what-we-will-not-merge).

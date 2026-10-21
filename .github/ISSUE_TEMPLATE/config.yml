@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/flyingsquirrel0419/site2api/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Documentation
+    url: https://github.com/flyingsquirrel0419/site2api/tree/main/docs
+    about: Getting started, the CLI reference, capture scripts and the security model.

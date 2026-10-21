@@ -170,6 +170,8 @@ pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capt
 演示是 `demo/motion/` 中的 [HyperFrames](https://github.com/heygen-com/hyperframes) 项目，重新渲染的方法见该目录的 README。在其他智能体中测试这个 Skill：
 [docs/testing-skill.md](docs/testing-skill.md)。
 
+欢迎贡献：请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)，报告漏洞请见 [SECURITY.md](SECURITY.md)，变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## 许可证
 
 MIT

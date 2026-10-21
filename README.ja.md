@@ -176,6 +176,8 @@ pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capt
 デモは `demo/motion/` にある [HyperFrames](https://github.com/heygen-com/hyperframes) プロジェクトです。再レンダリングの方法はそのフォルダーの README にあります。他のエージェントでスキルをテストする方法:
 [docs/testing-skill.md](docs/testing-skill.md)
 
+コントリビューションを歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md)、[行動規範](CODE_OF_CONDUCT.md)、脆弱性の報告は [SECURITY.md](SECURITY.md)、変更履歴は [CHANGELOG.md](CHANGELOG.md) をご覧ください。
+
 ## ライセンス
 
 MIT
