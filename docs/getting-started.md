@@ -4,7 +4,7 @@ This walks through one site from nothing to an agent calling it. It takes about 
 
 ## Install
 
-site2api needs Node.js 20 or newer. It is not on npm yet, so install it from source:
+site2api needs Node.js 22.12 or newer. It is not on npm yet, so install it from source:
 
 ```bash
 git clone https://github.com/flyingsquirrel0419/site2api && cd site2api

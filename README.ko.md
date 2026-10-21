@@ -8,8 +8,9 @@
 사이트를 한 번만 써 보세요. 에이전트는 실제 사이트로 검증을 마친 진짜 도구를 얻습니다.</p>
 
 <p align="center">
+  <a href="https://github.com/flyingsquirrel0419/site2api/actions/workflows/ci.yml"><img src="https://github.com/flyingsquirrel0419/site2api/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d4aff" alt="MIT 라이선스"></a>
-  <img src="https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white" alt="Node 20+">
+  <img src="https://img.shields.io/badge/node-%E2%89%A522.12-339933?logo=node.js&logoColor=white" alt="Node 22.12+">
   <img src="https://img.shields.io/badge/MCP-server-1c2030" alt="MCP">
   <img src="https://img.shields.io/badge/Agent%20Skills-Claude%20Code%20%C2%B7%20Cursor%20%C2%B7%20Codex-1c2030" alt="Agent Skills">
 </p>
