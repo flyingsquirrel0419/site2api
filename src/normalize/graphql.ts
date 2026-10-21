@@ -24,7 +24,10 @@ export function graphqlCall(ex: Exchange): GraphqlCall | undefined {
   }
   if (!payload || typeof payload.query !== "string") return undefined;
 
+  // `query` is also a plain search field (Algolia and others). Only a GraphQL document counts:
+  // an operation keyword, or the shorthand selection-set form `{ field }`.
   const match = OPERATION_RE.exec(payload.query);
+  if (!match && !/^\s*\{/.test(payload.query)) return undefined;
   const operationType = (match?.[1] ?? "query") as GraphqlCall["operationType"];
   const operationName =
     (typeof payload.operationName === "string" && payload.operationName) || match?.[2] || "anonymous";

@@ -51,6 +51,7 @@ export function renderReport({ source, total, filter, hints, operations, depende
   lines.push(`- Session cookies: ${list(hints.sessionCookies)}`);
   lines.push(`- CSRF headers: ${list(hints.csrfHeaders)}`);
   lines.push(`- API key headers: ${list(hints.apiKeyHeaders)}`);
+  lines.push(`- API key query parameters: ${list(hints.apiKeyQueryParams)}`);
   const setters = operations.filter((op) => op.auth.setsCookies.length > 0);
   for (const op of setters) {
     lines.push(`- \`${op.method} ${op.template}\` sets cookies: ${list(op.auth.setsCookies)}`);
@@ -103,6 +104,7 @@ function authLabel(op: Operation): string {
     ...op.auth.cookies.map((c) => `cookie:${c}`),
     ...op.auth.csrfHeaders.map((h) => `csrf:${h}`),
     ...op.auth.apiKeyHeaders.map((h) => `key:${h}`),
+    ...op.auth.apiKeyQueryParams.map((q) => `key:?${q}`),
   ];
   return parts.length > 0 ? parts.join(", ") : "—";
 }

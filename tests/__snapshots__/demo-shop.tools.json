@@ -50,7 +50,8 @@
       "auth": {
         "cookie": true,
         "bearer": false,
-        "csrf": true
+        "csrf": true,
+        "apiKeys": []
       }
     },
     {
@@ -71,7 +72,8 @@
       "auth": {
         "cookie": true,
         "bearer": false,
-        "csrf": false
+        "csrf": false,
+        "apiKeys": []
       }
     },
     {
@@ -106,7 +108,8 @@
       "auth": {
         "cookie": true,
         "bearer": false,
-        "csrf": false
+        "csrf": false,
+        "apiKeys": []
       }
     },
     {
@@ -145,7 +148,8 @@
       "auth": {
         "cookie": false,
         "bearer": false,
-        "csrf": false
+        "csrf": false,
+        "apiKeys": []
       }
     },
     {
@@ -179,7 +183,8 @@
       "auth": {
         "cookie": false,
         "bearer": false,
-        "csrf": false
+        "csrf": false,
+        "apiKeys": []
       }
     },
     {
@@ -218,7 +223,8 @@
       "auth": {
         "cookie": true,
         "bearer": false,
-        "csrf": false
+        "csrf": false,
+        "apiKeys": []
       }
     },
     {
@@ -244,7 +250,8 @@
       "auth": {
         "cookie": true,
         "bearer": false,
-        "csrf": false
+        "csrf": false,
+        "apiKeys": []
       }
     }
   ],

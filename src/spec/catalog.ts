@@ -18,7 +18,10 @@ export interface CatalogInput {
 export interface CatalogAuth {
   bearer: boolean;
   cookies: string[];
+  /** Header-borne credentials: the CSRF header and any API-key headers. */
   headers: string[];
+  /** API keys sent in a header or the query string (not the CSRF header). */
+  apiKeys: { in: "header" | "query"; name: string }[];
 }
 
 export interface CatalogOperation {
@@ -106,7 +109,7 @@ export function readCatalog(spec: Json): Catalog {
         responses: Object.fromEntries(
           Object.entries<Json>(op.responses ?? {}).map(([status, r]) => [status, r.content?.["application/json"]?.schema]),
         ),
-        auth: authOf(op.security, schemes),
+        auth: authOf(op.security, schemes, auth.csrf?.header),
         writes: !!op["x-site2api"]?.writes,
         setsSession: setBy.has(op.operationId),
         providesAuth: setBy.has(op.operationId) || authSources.has(op.operationId),
@@ -129,7 +132,7 @@ export function readCatalog(spec: Json): Catalog {
       bodyType: g.endpoint.method === "POST" ? "application/json" : undefined,
       graphql: { operationName: g.operationName, operationType: g.operationType, query: g.query },
       responses: { "200": g.response },
-      auth: authOf(g.security, schemes),
+      auth: authOf(g.security, schemes, auth.csrf?.header),
       writes: !!g["x-site2api"]?.writes,
       setsSession: setBy.has(g.operationId),
       providesAuth: setBy.has(g.operationId) || authSources.has(g.operationId),
@@ -164,14 +167,17 @@ function addObjectInputs(inputs: CatalogInput[], where: "body" | "variables", sc
   }
 }
 
-function authOf(security: Json[] | undefined, schemes: Json): CatalogAuth {
-  const result: CatalogAuth = { bearer: false, cookies: [], headers: [] };
+function authOf(security: Json[] | undefined, schemes: Json, csrfHeader: string | undefined): CatalogAuth {
+  const result: CatalogAuth = { bearer: false, cookies: [], headers: [], apiKeys: [] };
   for (const name of Object.keys(security?.[0] ?? {})) {
     const scheme = schemes[name];
     if (!scheme) continue;
     if (scheme.type === "http" && scheme.scheme === "bearer") result.bearer = true;
     else if (scheme.in === "cookie") result.cookies.push(scheme.name);
-    else if (scheme.in === "header") result.headers.push(scheme.name);
+    else if (scheme.in === "header") {
+      result.headers.push(scheme.name);
+      if (scheme.name !== csrfHeader) result.apiKeys.push({ in: "header", name: scheme.name });
+    } else if (scheme.in === "query") result.apiKeys.push({ in: "query", name: scheme.name });
   }
   return result;
 }

@@ -8,6 +8,8 @@ export interface Schema {
   required?: string[];
   items?: Schema;
   additionalProperties?: boolean;
+  /** Set on inputs that had the same (non-sensitive) value in every sample. */
+  default?: unknown;
 }
 
 interface Inner {

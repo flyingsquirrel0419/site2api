@@ -27,7 +27,13 @@ const client = new HttpClient({
   recordedBaseUrl: file.baseUrl,
   baseUrl: env.SITE2API_BASE_URL,
   rate: Number(env.SITE2API_RATE ?? 1),
-  credentials: { cookie: env.SITE2API_COOKIE, bearer: env.SITE2API_BEARER },
+  credentials: {
+    cookie: env.SITE2API_COOKIE,
+    bearer: env.SITE2API_BEARER,
+    apiKeys: Object.fromEntries(
+      file.tools.flatMap((t) => t.auth.apiKeys ?? []).flatMap((k) => (env[k.env] ? [[k.name, env[k.env]!]] : [])),
+    ),
+  },
   csrf: file.csrf,
 });
 
@@ -70,6 +76,8 @@ async function callTool(tool: ToolDef, args: Args): Promise<Result> {
     return error(`${tool.name} needs a logged-in session. Set SITE2API_COOKIE to the Cookie header from your browser.`);
   }
   if (tool.auth.bearer && !env.SITE2API_BEARER) return error(`${tool.name} needs SITE2API_BEARER to be set.`);
+  const missingKeys = (tool.auth.apiKeys ?? []).filter((k) => !env[k.env]).map((k) => k.env);
+  if (missingKeys.length > 0) return error(`${tool.name} needs an API key: set ${missingKeys.join(", ")}.`);
 
   return render(await client.call(tool.http, args, tool.auth));
 }

@@ -64,7 +64,8 @@ export function findDependencies(exchanges: Exchange[], ops: Operation[], sessio
     const op = opOf.get(ex);
     if (!op) continue;
 
-    for (const use of inputsOf(ex, op)) {
+    const inputs = inputsOf(ex, op);
+    for (const use of inputs) {
       const key = `${ops.indexOf(op)}|${use.target.in}|${use.target.name}`;
       let tally = tallies.get(key);
       if (!tally) tallies.set(key, (tally = { to: op, target: use.target, samples: 0, hits: new Map() }));
@@ -84,7 +85,11 @@ export function findDependencies(exchanges: Exchange[], ops: Operation[], sessio
 
     const body = parseJson(ex.responseBody);
     if (body === undefined) continue;
+    // A value this request sent and the response merely echoes (a search term in highlight
+    // results, a filter repeated back) was not produced by this response.
+    const sent = new Set(inputs.map((i) => i.value));
     for (const [pointer, value] of leaves(body)) {
+      if (sent.has(value)) continue;
       const list = seen.get(value) ?? [];
       list.push({ op, status: ex.status, pointer });
       seen.set(value, list);

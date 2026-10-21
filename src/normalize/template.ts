@@ -5,6 +5,8 @@
 //   2. three or more sibling paths differ only at that position AND the parent collection
 //      was itself requested (/products plus /products/keyboard, /products/hub, …).
 // Rule 2's parent check is what keeps /api/products and /api/orders apart.
+// A one- or two-digit number at the start of the path, or right after "api"/"rest", is an API
+// version (/1/indexes/…, /api/2/…), not an id, so it stays literal.
 
 export type SegmentKind = "integer" | "uuid" | "hex" | "token" | "date" | "slug";
 
@@ -39,6 +41,12 @@ function split(path: string): string[] {
   return path.split("/").filter(Boolean);
 }
 
+const VERSION_PARENTS = new Set(["api", "rest"]);
+
+function isVersionSegment(segs: string[], i: number): boolean {
+  return /^\d{1,2}$/.test(segs[i]!) && (i === 0 || VERSION_PARENTS.has(segs[i - 1]!.toLowerCase()));
+}
+
 export function singular(word: string): string {
   if (/ies$/i.test(word)) return word.slice(0, -3) + "y";
   if (/(?:ss|us|is)$/i.test(word)) return word;
@@ -59,7 +67,9 @@ export function templatePaths(paths: Iterable<string>): Map<string, PathTemplate
 
   // Pass 1: shape-based parameters.
   const isParam = new Map<string, boolean[]>();
-  for (const [path, segs] of segmentsOf) isParam.set(path, segs.map((s) => segmentKind(s) !== undefined));
+  for (const [path, segs] of segmentsOf) {
+    isParam.set(path, segs.map((s, i) => segmentKind(s) !== undefined && !isVersionSegment(segs, i)));
+  }
 
   // Pass 2: sibling variance. Group by everything except position i (with pass-1 params masked).
   const maxLen = Math.max(0, ...[...segmentsOf.values()].map((s) => s.length));

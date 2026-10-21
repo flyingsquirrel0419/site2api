@@ -37,6 +37,7 @@
 - Session cookies: `sid`
 - CSRF headers: `x-csrf-token`
 - API key headers: none
+- API key query parameters: none
 - `POST /api/login` sets cookies: `sid`
 - CSRF `x-csrf-token` comes from `GET /api/session` response `/csrfToken`
 

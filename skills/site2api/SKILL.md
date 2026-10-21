@@ -14,7 +14,15 @@ in step 4: naming tools, describing them, and deciding which ones are safe to ex
 - **Never open, print, or search the HAR file yourself.** It contains the user's cookies and
   passwords. Only the CLI reads it. The same goes for `.site2api/secrets.json`.
 - **Never ask the user to paste a cookie or token into the chat.** They put it in their MCP
-  client config themselves (step 6).
+  client config themselves (step 7).
+- **Never write captured values into the chat:** cookies, tokens, API keys, session ids, even
+  ones that look public (a search key embedded in the page). Name the environment variable
+  instead, e.g. "set `SITE2API_KEY_X_ALGOLIA_API_KEY`".
+- **Don't change site2api itself** (its source, `openapi.yaml`, `tools.json`, `server.mjs`).
+  The files you write are `annotations.json` and, if needed, a capture script. If site2api gets
+  something wrong (an operation misdetected, inputs merged into one, a constant turned into a
+  parameter), tell the user what you saw so they can report it, and work around it in the
+  annotations where you can.
 - Only for the user's own accounts or public pages, and within the site's terms of service. If
   the request is about collecting other people's data at scale, or getting around bot
   protection, stop and say site2api does not do that.
@@ -144,8 +152,9 @@ require `confirm: true` on every call, and you must get the user's approval for 
 
 Show the user the tool list that `generate` printed, and point them to `out/mcp/README.md`. It
 has the snippet for their client: `.cursor/mcp.json` for Cursor, `claude mcp add` for Claude
-Code. Tell them to set `SITE2API_COOKIE` themselves in that config. To get the value, they copy
-the `Cookie` request header from DevTools → Network on any logged-in request to the site.
+Code. Tell them to set the environment variables it lists themselves in that config:
+`SITE2API_COOKIE` for a login session (the `Cookie` request header from DevTools → Network), and
+`SITE2API_KEY_…` for API keys the site sends in a header or the query string.
 
 Sessions expire. When a tool says the session may have expired, the user refreshes that value.
 No regeneration is needed.

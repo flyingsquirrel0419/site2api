@@ -281,7 +281,8 @@ async function verifyDir(dir: string, opts: VerifyCliOptions): Promise<VerifyRep
   let cookie = opts.cookie ?? process.env.SITE2API_COOKIE;
   if (!cookie && opts.profile) {
     cookie = await cookiesFromProfile(catalog.baseUrl, opts.profileDir);
-    if (!cookie) console.warn("warning: the profile has no persistent cookies for this site (session cookies end with the browser)");
+    const needsCookie = catalog.operations.some((op) => op.auth.cookies.length > 0);
+    if (!cookie && needsCookie) console.warn("warning: the profile has no persistent cookies for this site (session cookies end with the browser)");
   }
   const report = await verify(catalog, annotations, {
     credentials: { cookie, bearer: process.env.SITE2API_BEARER },

@@ -4,6 +4,8 @@ export interface EntrySpec {
   url: string;
   requestHeaders?: Record<string, string>;
   requestBody?: unknown;
+  /** Content type the HAR records for the request body (default application/json). */
+  requestMime?: string;
   status?: number;
   responseMime?: string;
   responseBody?: unknown;
@@ -20,7 +22,7 @@ export function har(entries: EntrySpec[]): string {
           url: e.url,
           headers: Object.entries(e.requestHeaders ?? {}).map(([name, value]) => ({ name, value })),
           ...(e.requestBody !== undefined
-            ? { postData: { mimeType: "application/json", text: JSON.stringify(e.requestBody) } }
+            ? { postData: { mimeType: e.requestMime ?? "application/json", text: JSON.stringify(e.requestBody) } }
             : {}),
         },
         response: {

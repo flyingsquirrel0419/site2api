@@ -1,7 +1,7 @@
 // `site2api verify`: calls every read-only tool against the live site and checks the response
 // against the schema inferred from the recording. Write and auth operations are never called.
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
-import { parseJson, type Exchange } from "../capture/har.js";
+import { header, parseJson, type Exchange } from "../capture/har.js";
 import type { Annotations } from "../infer/annotations.js";
 import { graphqlCall } from "../normalize/graphql.js";
 import { buildTools } from "../generate/tools.js";
@@ -49,7 +49,7 @@ export async function verify(catalog: Catalog, annotations: Annotations, options
     recordedBaseUrl: tools.baseUrl,
     baseUrl: options.baseUrl,
     rate: options.rate,
-    credentials: options.credentials,
+    credentials: { ...options.credentials }, // copied: API keys are added to it per operation
     csrf: tools.csrf,
   });
   const byId = new Map(catalog.operations.map((op) => [op.id, op]));
@@ -95,6 +95,18 @@ async function verifyTool(
   if (tool.auth.cookie && !options.credentials.cookie) return { ...base, status: "skipped", reason: "needs a session cookie" };
   if (tool.auth.bearer && !options.credentials.bearer) return { ...base, status: "skipped", reason: "needs a bearer token" };
 
+  // API keys: from env, else the value the recording sent (kept in memory, never written).
+  const recordedEx = recordedExchange(op, options.recorded);
+  const apiKeys: Record<string, string> = {};
+  for (const key of tool.auth.apiKeys) {
+    const value =
+      process.env[key.env] ??
+      (key.in === "query" ? recordedEx?.url.searchParams.get(key.name) : header(recordedEx?.requestHeaders ?? [], key.name)) ??
+      undefined;
+    if (value === undefined || value === null) return { ...base, status: "skipped", reason: `needs ${key.env}` };
+    apiKeys[key.name] = value;
+  }
+
   const { args, sources } = resolveInputs(op, tool, catalog, bodies, options);
   const missing = op.inputs.filter((i) => i.required && args[i.name] === undefined).map((i) => i.name);
   if (missing.length > 0) {
@@ -103,6 +115,7 @@ async function verifyTool(
 
   let res;
   try {
+    client.setApiKeys(apiKeys);
     res = await client.call(tool.http, args, tool.auth);
   } catch (err) {
     return { ...base, status: "error", inputs: sources, reason: err instanceof Error ? err.message : String(err) };
@@ -160,14 +173,19 @@ function resolveInputs(
   return { args, sources };
 }
 
-/** Input values from the first recorded request of this operation. */
-function recordedInputs(op: CatalogOperation, recorded: Operation[] | undefined): Args {
+/** The first recorded request of this operation, if the capture is available. */
+function recordedExchange(op: CatalogOperation, recorded: Operation[] | undefined): Exchange | undefined {
   const match = recorded?.find((r) =>
     op.graphql
       ? r.graphql?.operationName === op.graphql.operationName
       : !r.graphql && r.method === op.method && r.template === op.path && op.url.startsWith(r.origin),
   );
-  const ex: Exchange | undefined = match?.exchanges[0];
+  return match?.exchanges[0];
+}
+
+/** Input values from the first recorded request of this operation. */
+function recordedInputs(op: CatalogOperation, recorded: Operation[] | undefined): Args {
+  const ex = recordedExchange(op, recorded);
   if (!ex) return {};
 
   const values: Args = {};

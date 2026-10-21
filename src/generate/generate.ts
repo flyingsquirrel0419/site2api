@@ -79,9 +79,11 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
   const name = slug(tools.site.name);
   const needsCookie = tools.tools.some((t) => t.auth.cookie);
   const needsBearer = tools.tools.some((t) => t.auth.bearer);
+  const keyEnvs = [...new Map(tools.tools.flatMap((t) => t.auth.apiKeys).map((k) => [k.env, k])).values()];
   const envLines = [
     ...(needsCookie ? [`SITE2API_COOKIE: "<Cookie header copied from your browser>"`] : []),
     ...(needsBearer ? [`SITE2API_BEARER: "<token>"`] : []),
+    ...keyEnvs.map((k) => `${k.env}: "<value of the ${k.name} ${k.in === "query" ? "query parameter" : "header"}>"`),
   ];
   const envJson = Object.fromEntries(envLines.map((l) => [l.split(":")[0]!, l.slice(l.indexOf(":") + 2).replace(/"/g, "")]));
 
@@ -119,13 +121,16 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
     "```",
     "",
   );
-  if (needsCookie || needsBearer) {
+  if (needsCookie || needsBearer || keyEnvs.length > 0) {
     lines.push(
       "## Credentials",
       "",
       "The server reads credentials only from environment variables and never stores them.",
       needsCookie
         ? "To get the cookie: open the site logged in, open DevTools → Network, select any request to the site, and copy the value of the `Cookie` request header. Do not paste it into a chat."
+        : "",
+      keyEnvs.length > 0
+        ? `API keys: in DevTools → Network, open a request to the site's API and copy the value of ${keyEnvs.map((k) => `\`${k.name}\``).join(", ")} (from the ${keyEnvs.some((k) => k.in === "query") ? "query string" : "request headers"}).`
         : "",
       "",
     );

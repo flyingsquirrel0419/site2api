@@ -1,7 +1,7 @@
 // Catalog + annotations → tools.json.
 import type { Annotations } from "../infer/annotations.js";
 import { defaultKind, type Catalog, type CatalogOperation } from "../spec/catalog.js";
-import type { HttpCall, ToolDef, ToolsFile } from "./types.js";
+import { apiKeyEnv, type HttpCall, type ToolDef, type ToolsFile } from "./types.js";
 
 export interface BuildToolsOptions {
   /** Include tools that change data. They still require `confirm: true` on every call. */
@@ -42,6 +42,7 @@ export function buildTools(catalog: Catalog, annotations: Annotations, options: 
           cookie: op.auth.cookies.length > 0,
           bearer: op.auth.bearer,
           csrf: !!catalog.auth.csrf && op.auth.headers.includes(catalog.auth.csrf.header),
+          apiKeys: op.auth.apiKeys.map((k) => ({ ...k, env: apiKeyEnv(k.name) })),
         },
         ...(verified && { verified }),
       });
@@ -72,7 +73,12 @@ function httpCall(op: CatalogOperation): HttpCall {
   return {
     method: op.method,
     url: op.url,
-    inputs: op.inputs.map((i) => ({ name: i.name, in: i.in, source: i.source })),
+    inputs: op.inputs.map((i) => ({
+      name: i.name,
+      in: i.in,
+      source: i.source,
+      ...(i.schema.default !== undefined && { default: i.schema.default }),
+    })),
     ...(op.bodyType && { bodyType: op.bodyType }),
     ...(op.graphql && { graphql: { operationName: op.graphql.operationName, query: op.graphql.query } }),
   };

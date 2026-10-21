@@ -62,7 +62,10 @@ run headless (`--headed` to watch), stop at 60 page loads + API calls (`--max-re
 
 ### The generated server
 
-- reads credentials only from `SITE2API_COOKIE` / `SITE2API_BEARER`, and never stores them
+- reads credentials only from environment variables (`SITE2API_COOKIE`, `SITE2API_BEARER`, and
+  `SITE2API_KEY_<NAME>` for API keys sent in a header or the query string), and never stores them
+- fills in inputs that never changed while recording (a client version, a fixed page size) with
+  their recorded value, so agents only pass what matters
 - fetches CSRF tokens automatically and refreshes them on 403
 - leaves out tools that change data unless you pass `--allow-writes`, and even then requires
   `confirm: true` on every call

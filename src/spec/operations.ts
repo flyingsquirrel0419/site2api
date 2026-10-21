@@ -10,6 +10,7 @@ export interface OperationAuth {
   cookies: string[];
   csrfHeaders: string[];
   apiKeyHeaders: string[];
+  apiKeyQueryParams: string[];
   setsCookies: string[];
 }
 
@@ -51,7 +52,7 @@ export function groupOperations(exchanges: Exchange[], hints: AuthHints): Operat
         params: tpl?.params ?? [],
         exchanges: [],
         graphql: call && { operationName: call.operationName, operationType: call.operationType, query: call.query },
-        auth: { bearer: true, cookies: [], csrfHeaders: [], apiKeyHeaders: [], setsCookies: [] },
+        auth: { bearer: true, cookies: [], csrfHeaders: [], apiKeyHeaders: [], apiKeyQueryParams: [], setsCookies: [] },
       };
       ops.set(key, op);
     }
@@ -68,6 +69,7 @@ export function groupOperations(exchanges: Exchange[], hints: AuthHints): Operat
       cookies: all((a) => a.cookies),
       csrfHeaders: all((a) => a.csrfHeaders),
       apiKeyHeaders: all((a) => a.apiKeyHeaders),
+      apiKeyQueryParams: all((a) => a.apiKeyQueryParams),
       setsCookies: [...new Set(each.flatMap((a) => a.setsCookies))].sort(),
     };
   }

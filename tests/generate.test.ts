@@ -43,7 +43,7 @@ describe("buildTools", () => {
     const withWrites = buildTools(catalog, { version: 1, operations: {} }, { allowWrites: true });
     const cart = withWrites.tools.find((t) => t.name === "post_cart")!;
     expect(cart.kind).toBe("write");
-    expect(cart.auth).toEqual({ cookie: true, bearer: false, csrf: true });
+    expect(cart.auth).toEqual({ cookie: true, bearer: false, csrf: true, apiKeys: [] });
     expect((cart.inputSchema as { required: string[] }).required).toEqual(["productId", "confirm"]);
     expect(withWrites.csrf).toEqual({
       header: "x-csrf-token",

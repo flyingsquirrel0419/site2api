@@ -7,6 +7,8 @@ export type Args = Record<string, unknown>;
 export interface Credentials {
   cookie?: string;
   bearer?: string;
+  /** API key values by header or query parameter name. */
+  apiKeys?: Record<string, string>;
 }
 
 export interface HttpResponse {
@@ -32,6 +34,11 @@ export class HttpClient {
 
   constructor(private readonly options: HttpClientOptions) {}
 
+  /** Adds API key values (verify learns them per operation, from env or the recording). */
+  setApiKeys(apiKeys: Record<string, string>): void {
+    this.options.credentials.apiKeys = { ...this.options.credentials.apiKeys, ...apiKeys };
+  }
+
   /** Sends the call, adding a CSRF token when needed and refreshing it once on 403. */
   async call(http: HttpCall, args: Args, auth: ToolAuth): Promise<HttpResponse> {
     const csrf = this.options.csrf;
@@ -53,7 +60,7 @@ export class HttpClient {
   private async fetchCsrf(): Promise<string | undefined> {
     const source = this.options.csrf?.source;
     if (!source) return undefined;
-    const res = await this.send(source.http, {}, { cookie: true, bearer: !!this.options.credentials.bearer, csrf: false }, {});
+    const res = await this.send(source.http, {}, { cookie: true, bearer: !!this.options.credentials.bearer, csrf: false, apiKeys: [] }, {});
     if (res.status >= 400) return undefined;
     const value = pointerGet(safeJson(res.text), source.pointer);
     this.csrfToken = typeof value === "string" ? value : undefined;
@@ -69,7 +76,7 @@ export class HttpClient {
     const body: Args = {};
     let wholeBody: unknown;
     for (const input of http.inputs) {
-      const value = args[input.name];
+      const value = args[input.name] ?? input.default;
       if (value === undefined) continue;
       if (input.in === "path") url = url.replace(`{${input.source}}`, encodeURIComponent(String(value)));
       else if (input.in === "query") query.append(input.source, String(value));
@@ -80,6 +87,12 @@ export class HttpClient {
     const headers: Record<string, string> = { accept: "application/json", ...extraHeaders };
     if (auth.cookie && credentials.cookie) headers.cookie = credentials.cookie;
     if (auth.bearer && credentials.bearer) headers.authorization = `Bearer ${credentials.bearer}`;
+    for (const key of auth.apiKeys ?? []) {
+      const value = credentials.apiKeys?.[key.name];
+      if (value === undefined) continue;
+      if (key.in === "header") headers[key.name] = value;
+      else query.set(key.name, value);
+    }
 
     let payload: string | undefined;
     if (http.graphql) {

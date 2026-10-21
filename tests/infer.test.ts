@@ -25,7 +25,7 @@ describe("readCatalog", () => {
 
   it("knows auth requirements and the login operation", () => {
     const cart = catalog.operations.find((op) => op.id === "post_cart")!;
-    expect(cart.auth).toEqual({ bearer: false, cookies: ["sid"], headers: ["x-csrf-token"] });
+    expect(cart.auth).toEqual({ bearer: false, cookies: ["sid"], headers: ["x-csrf-token"], apiKeys: [] });
     expect(catalog.operations.filter((op) => op.setsSession).map((op) => op.id)).toEqual(["post_login"]);
   });
 });

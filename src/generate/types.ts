@@ -6,6 +6,8 @@ export interface ToolInput {
   in: "path" | "query" | "body" | "variables";
   /** Original parameter name or top-level body key. Empty when the input is the whole body. */
   source: string;
+  /** Sent when the caller leaves the input out: it had this value in every recorded sample. */
+  default?: unknown;
 }
 
 export interface HttpCall {
@@ -21,6 +23,19 @@ export interface ToolAuth {
   cookie: boolean;
   bearer: boolean;
   csrf: boolean;
+  /** API keys the runtime adds from env; values are never stored in tools.json. */
+  apiKeys: ApiKeyRef[];
+}
+
+export interface ApiKeyRef {
+  in: "header" | "query";
+  name: string;
+  /** Environment variable that holds the value, e.g. SITE2API_KEY_X_ALGOLIA_API_KEY. */
+  env: string;
+}
+
+export function apiKeyEnv(name: string): string {
+  return `SITE2API_KEY_${name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
 }
 
 export interface ToolDef {

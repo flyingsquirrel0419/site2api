@@ -56,7 +56,7 @@ export function buildSpec(
     }
     const item = (paths[op.template] ??= {});
     if (op.origin !== primaryOrigin) item.servers = [{ url: op.origin }];
-    item[op.method.toLowerCase()] = restOperation(op, ids.get(op)!, options);
+    item[op.method.toLowerCase()] = restOperation(op, ids.get(op)!, options, hints.apiKeyQueryParams);
   }
   addOpenApiLinks(paths, deps, ids);
 
@@ -145,7 +145,7 @@ function authExtension(deps: Dependencies, ids: Map<Operation, string>): Json | 
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-function restOperation(op: Operation, operationId: string, options: SpecOptions): Json {
+function restOperation(op: Operation, operationId: string, options: SpecOptions, keyParams: string[]): Json {
   const out: Json = { operationId, summary: humanize(operationId) };
 
   const parameters: Json[] = op.params.map((p) => ({
@@ -154,7 +154,7 @@ function restOperation(op: Operation, operationId: string, options: SpecOptions)
     required: true,
     schema: pathParamSchema(p.kind, p.values),
   }));
-  parameters.push(...queryParameters(op.exchanges, options));
+  parameters.push(...queryParameters(op.exchanges, options, keyParams));
   if (parameters.length > 0) out.parameters = parameters;
 
   const body = requestBody(op.exchanges, options);
@@ -231,6 +231,12 @@ function ensureGraphqlPath(paths: Record<string, Record<string, unknown>>, op: O
   };
 }
 
+function coerceScalar(value: string, schema: Schema): unknown {
+  if (schema.type === "integer" || schema.type === "number") return Number(value);
+  if (schema.type === "boolean") return value === "true";
+  return value;
+}
+
 function pathParamSchema(kind: string, values: string[]): Schema {
   if (kind === "integer") return { type: "integer" };
   if (kind === "uuid") return { type: "string", format: "uuid" };
@@ -238,23 +244,40 @@ function pathParamSchema(kind: string, values: string[]): Schema {
   return inferScalarSchema(values).type === "integer" ? { type: "integer" } : { type: "string" };
 }
 
-function queryParameters(exchanges: Exchange[], options: SpecOptions): Json[] {
+// An input that never changed across 2+ samples (a client version, a fixed page size) becomes an
+// optional input with that default, so agents do not have to repeat it. Only values that
+// redaction would leave untouched qualify: never emails, phone numbers, tokens or secrets.
+const MIN_SAMPLES_FOR_DEFAULT = 2;
+
+function constantValue(values: unknown[], key: string, total: number): { value: unknown } | undefined {
+  if (total < MIN_SAMPLES_FOR_DEFAULT || values.length !== total) return undefined;
+  const first = JSON.stringify(values[0]);
+  if (!values.every((v) => JSON.stringify(v) === first)) return undefined;
+  if (JSON.stringify(redactValue(values[0], key)) !== first) return undefined;
+  return { value: values[0] };
+}
+
+function queryParameters(exchanges: Exchange[], options: SpecOptions, keyParams: string[]): Json[] {
   const values = new Map<string, string[]>();
   const seenIn = new Map<string, number>();
   for (const ex of exchanges) {
     const names = new Set<string>();
     for (const [name, value] of ex.url.searchParams) {
+      if (keyParams.includes(name)) continue; // a credential, sent by the runtime from env
       values.set(name, [...(values.get(name) ?? []), value]);
       names.add(name);
     }
     for (const name of names) seenIn.set(name, (seenIn.get(name) ?? 0) + 1);
   }
   return [...values.keys()].sort().map((name) => {
+    const schema: Schema = inferScalarSchema(values.get(name)!);
+    const constant = constantValue(values.get(name)!, name, exchanges.length);
+    if (constant) schema.default = coerceScalar(constant.value as string, schema);
     const param: Json = {
       name,
       in: "query",
-      required: seenIn.get(name) === exchanges.length,
-      schema: inferScalarSchema(values.get(name)!),
+      required: !constant && seenIn.get(name) === exchanges.length,
+      schema,
     };
     if (options.examples) param.example = redactValue(values.get(name)![0], name);
     return param;
@@ -268,17 +291,30 @@ function requestBody(exchanges: Exchange[], options: SpecOptions): Json | undefi
     if (!ex.requestBody) continue;
     withBody++;
     const mime = (ex.requestMime ?? "").split(";")[0]!.trim().toLowerCase();
-    let value: unknown;
-    if (mime === "application/x-www-form-urlencoded") value = Object.fromEntries(new URLSearchParams(ex.requestBody));
-    else value = parseJson(ex.requestBody);
+    // Some clients post JSON under a form content type to skip CORS preflight (Algolia does).
+    // A real form body is never a JSON object, so trust the body over the label.
+    const json = parseJson(ex.requestBody);
+    const isForm = mime === "application/x-www-form-urlencoded" && (json === null || typeof json !== "object");
+    const value = isForm ? Object.fromEntries(new URLSearchParams(ex.requestBody)) : json;
     if (value === undefined) continue;
-    const key = mime === "application/x-www-form-urlencoded" ? mime : "application/json";
+    const key = isForm ? mime : "application/json";
     byMime.set(key, [...(byMime.get(key) ?? []), value]);
   }
   if (byMime.size === 0) return undefined;
   const content: Json = {};
   for (const [mime, samples] of byMime) {
-    const media: Json = { schema: inferSchema(samples) };
+    const schema = inferSchema(samples);
+    if (schema.type === "object" && schema.properties && samples.length === exchanges.length) {
+      for (const [key, prop] of Object.entries(schema.properties)) {
+        const present = samples.filter((s) => s && typeof s === "object" && key in s).map((s) => (s as Json)[key]);
+        const constant = constantValue(present, key, exchanges.length);
+        if (!constant) continue;
+        prop.default = constant.value;
+        schema.required = schema.required?.filter((k) => k !== key);
+        if (schema.required?.length === 0) delete schema.required;
+      }
+    }
+    const media: Json = { schema };
     if (options.examples) media.example = redactValue(samples[0]);
     content[mime] = media;
   }
@@ -314,6 +350,7 @@ function securitySchemes(hints: AuthHints): Json {
   for (const name of [...hints.csrfHeaders, ...hints.apiKeyHeaders]) {
     schemes[schemeName("header", name)] = { type: "apiKey", in: "header", name };
   }
+  for (const name of hints.apiKeyQueryParams) schemes[schemeName("query", name)] = { type: "apiKey", in: "query", name };
   return schemes;
 }
 
@@ -322,10 +359,11 @@ function securityRequirement(auth: OperationAuth): Json | undefined {
   if (auth.bearer) req.bearerAuth = [];
   for (const c of auth.cookies) req[schemeName("cookie", c)] = [];
   for (const h of [...auth.csrfHeaders, ...auth.apiKeyHeaders]) req[schemeName("header", h)] = [];
+  for (const q of auth.apiKeyQueryParams) req[schemeName("query", q)] = [];
   return Object.keys(req).length > 0 ? req : undefined;
 }
 
-function schemeName(kind: "cookie" | "header", name: string): string {
+function schemeName(kind: "cookie" | "header" | "query", name: string): string {
   return `${kind}_${name.replace(/[^A-Za-z0-9._-]/g, "_")}`;
 }
 

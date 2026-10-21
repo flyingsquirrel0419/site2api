@@ -10,6 +10,8 @@ export interface AuthHints {
   csrfHeaders: string[];
   /** Request headers that look like API keys. */
   apiKeyHeaders: string[];
+  /** Query parameters that look like API keys or tokens (e.g. ?api_key=, x-algolia-api-key). */
+  apiKeyQueryParams: string[];
 }
 
 export interface ExchangeAuth {
@@ -17,17 +19,20 @@ export interface ExchangeAuth {
   cookies: string[];
   csrfHeaders: string[];
   apiKeyHeaders: string[];
+  apiKeyQueryParams: string[];
   setsCookies: string[];
 }
 
 const ANALYTICS_COOKIE = /^(?:_ga|_gid|_gat|_fbp|_fbc|_hj|amplitude|mp_|ajs_|intercom-|__utm|_clck|_clsk)/i;
 const CSRF_HEADER = /^x-(?:csrf|xsrf)(?:-token)?$|csrf/i;
 const API_KEY_HEADER = /^x-(?:api-key|apikey|api-token|auth-token)$/i;
+const API_KEY_QUERY = /^(?:key|apikey|token)$|(?:^|[-_])(?:api[-_]?key|access[-_]?token|auth[-_]?token|api[-_]?token|secret)$/i;
 
 export function detectAuth(exchanges: Exchange[]): AuthHints {
   const cookieUse = new Map<string, number>();
   const csrf = new Set<string>();
   const apiKey = new Set<string>();
+  const apiKeyQuery = new Set<string>();
   let bearer = false;
 
   for (const ex of exchanges) {
@@ -39,6 +44,7 @@ export function detectAuth(exchanges: Exchange[]): AuthHints {
       if (CSRF_HEADER.test(h.name)) csrf.add(h.name);
       if (API_KEY_HEADER.test(h.name)) apiKey.add(h.name);
     }
+    for (const name of ex.url.searchParams.keys()) if (API_KEY_QUERY.test(name)) apiKeyQuery.add(name);
   }
 
   return {
@@ -46,6 +52,7 @@ export function detectAuth(exchanges: Exchange[]): AuthHints {
     sessionCookies: [...cookieUse].filter(([, n]) => n >= 2).map(([name]) => name).sort(),
     csrfHeaders: [...csrf].sort(),
     apiKeyHeaders: [...apiKey].sort(),
+    apiKeyQueryParams: [...apiKeyQuery].sort(),
   };
 }
 
@@ -57,6 +64,7 @@ export function exchangeAuth(ex: Exchange, hints: AuthHints): ExchangeAuth {
     cookies: hints.sessionCookies.filter((c) => sent.has(c)),
     csrfHeaders: hints.csrfHeaders.filter((h) => names.has(h)),
     apiKeyHeaders: hints.apiKeyHeaders.filter((h) => names.has(h)),
+    apiKeyQueryParams: hints.apiKeyQueryParams.filter((q) => ex.url.searchParams.has(q)),
     setsCookies: [...setCookies(ex).keys()].filter((c) => !ANALYTICS_COOKIE.test(c)).sort(),
   };
 }
