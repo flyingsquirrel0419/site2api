@@ -56,6 +56,8 @@ interface AnalyzeCliOptions {
 
 /** out/.site2api holds the recording and the secret fingerprints: readable by this user only. */
 async function privateDir(dir: string): Promise<void> {
+  // Only this directory: a recursive mkdir would give the mode to out/ itself too.
+  await mkdir(dirname(dir), { recursive: true });
   await mkdir(dir, { recursive: true, mode: 0o700 });
   await chmod(dir, 0o700);
 }
