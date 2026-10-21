@@ -105,12 +105,13 @@ export class HttpClient {
 
     const qs = query.toString();
     await this.throttle();
-    const res = await fetch(qs ? `${url}${url.includes("?") ? "&" : "?"}${qs}` : url, {
-      method: http.method,
-      headers,
-      body: payload,
-      redirect: "manual",
-    });
+    const target = qs ? `${url}${url.includes("?") ? "&" : "?"}${qs}` : url;
+    let res: Response;
+    try {
+      res = await fetch(target, { method: http.method, headers, body: payload, redirect: "manual" });
+    } catch (err) {
+      throw new Error(networkErrorMessage(err, target));
+    }
     return { status: res.status, contentType: res.headers.get("content-type") ?? "", text: await res.text() };
   }
 
@@ -122,6 +123,25 @@ export class HttpClient {
     this.nextSlot = Math.max(now, this.nextSlot) + 1000 / rate;
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   }
+}
+
+const NETWORK_REASONS: Record<string, string> = {
+  ECONNREFUSED: "connection refused",
+  ENOTFOUND: "host not found",
+  EAI_AGAIN: "DNS lookup failed",
+  ECONNRESET: "connection reset",
+  ETIMEDOUT: "timed out",
+  UND_ERR_CONNECT_TIMEOUT: "timed out",
+  CERT_HAS_EXPIRED: "TLS certificate expired",
+  DEPTH_ZERO_SELF_SIGNED_CERT: "self-signed TLS certificate",
+};
+
+/** fetch() only says "fetch failed"; the useful part is in err.cause. */
+export function networkErrorMessage(err: unknown, url: string): string {
+  const cause = (err as { cause?: { code?: string; message?: string } })?.cause;
+  const code = cause?.code ?? "";
+  const reason = NETWORK_REASONS[code] ?? cause?.message ?? (err instanceof Error ? err.message : String(err));
+  return `could not reach ${new URL(url).origin} (${reason}). Is the site up, and is the base URL right? (SITE2API_BASE_URL / --base-url)`;
 }
 
 /** JSON pointer lookup where `*` means "first array element". */

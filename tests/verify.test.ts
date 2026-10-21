@@ -139,3 +139,19 @@ describe("buildTools with verify results", () => {
     expect(tools.skipped).toContainEqual({ operationId: "get_product", reason: "did not pass verify (not verified)" });
   });
 });
+
+describe("network errors", () => {
+  it("names the unreachable origin and the reason instead of 'fetch failed'", async () => {
+    // A port that was free a moment ago: nothing is listening there now.
+    const closed = express().listen(0);
+    await new Promise((r) => closed.once("listening", r));
+    const deadUrl = `http://127.0.0.1:${(closed.address() as AddressInfo).port}`;
+    await new Promise((r) => closed.close(r));
+
+    const report = await verify(catalog, none, { credentials: {}, baseUrl: deadUrl, rate: 0, recorded: analysis.operations });
+    expect(report.results.find((r) => r.tool === "list_products")).toMatchObject({
+      status: "error",
+      reason: `could not reach ${deadUrl} (connection refused). Is the site up, and is the base URL right? (SITE2API_BASE_URL / --base-url)`,
+    });
+  });
+});

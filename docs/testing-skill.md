@@ -10,6 +10,20 @@ The skill should work in any agent that supports Agent Skills, so we test it out
 3. Select the Grok model for Agent.
 4. Start the demo shop in a terminal: `pnpm demo` (http://localhost:4317).
 
+### Or from the terminal (Cursor CLI)
+
+The same agent runs headless with `cursor-agent` (install with `cursor agent`, then
+`cursor-agent login`). Start the demo shop **before** the run: if the agent starts a long-running
+server itself, `cursor-agent -p` never exits.
+
+```bash
+cursor-agent -p --model grok-4.7-high --force --sandbox enabled --output-format stream-json "tests/fixtures/demo-shop.har로 MCP 서버 만들어줘" > run.jsonl
+```
+
+`--force` lets the agent run shell commands unattended, so use a throwaway clone of the repo. The
+stream-json log records every file the agent read and every command it ran, which is how
+checklist items 2–3 are checked.
+
 ## Run
 
 Ask the agent:
