@@ -36,9 +36,6 @@ importers:
       express:
         specifier: ^5.3.0
         version: 5.3.0
-      playwright:
-        specifier: ^1.64.1
-        version: 1.64.1
       tsup:
         specifier: ^9.0.0
         version: 9.0.0(postcss@8.5.31)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -51,6 +48,10 @@ importers:
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+    optionalDependencies:
+      playwright:
+        specifier: ^1.64.1
+        version: 1.64.1
 
 packages:
 
@@ -2288,11 +2289,13 @@ snapshots:
       mlly: 1.8.2
       pathe: 2.0.3
 
-  playwright-core@1.64.1: {}
+  playwright-core@1.64.1:
+    optional: true
 
   playwright@1.64.1:
     dependencies:
       playwright-core: 1.64.1
+    optional: true
 
   postcss-load-config@6.0.1(postcss@8.5.31)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:

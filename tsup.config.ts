@@ -5,6 +5,8 @@ export default defineConfig([
     entry: { cli: "src/cli.ts" },
     format: "esm",
     target: "node20",
+    // Optional: only `record` needs it, and it is loaded lazily.
+    external: ["playwright"],
   },
   {
     // The generated MCP server: one self-contained file, so users never need `npm install`.

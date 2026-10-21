@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cookiesFromProfile, DEFAULT_PROFILE_DIR, record } from "./capture/record.js";
 import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
@@ -13,6 +15,7 @@ import { verify, type VerifyReport } from "./verify/verify.js";
 import {
   ANNOTATIONS_FILE,
   AnnotationsError,
+  CAPTURE_FILE,
   findCapture,
   loadAnnotations,
   loadCatalog,
@@ -36,26 +39,95 @@ program
   .option("--site <site>", "first-party site (eTLD+1); inferred when omitted")
   .option("--include-origin <host...>", "extra hosts or sites to keep")
   .option("--examples", "include redacted example values in the spec", false)
-  .action(async (file: string, opts: { out: string; site?: string; includeOrigin?: string[]; examples: boolean }) => {
-    const result = analyzeHar(await readFile(file, "utf8"), {
-      source: basename(file),
-      site: opts.site,
-      includeOrigins: opts.includeOrigin,
-      examples: opts.examples,
-    });
-    await mkdir(opts.out, { recursive: true });
-    await writeFile(join(opts.out, "openapi.yaml"), result.yaml);
-    await writeFile(join(opts.out, "report.md"), result.report);
-    await mkdir(join(opts.out, dirname(SECRETS_FILE)), { recursive: true });
-    await writeFile(join(opts.out, SECRETS_FILE), JSON.stringify(result.secrets) + "\n");
-    await writeFile(join(opts.out, SOURCE_FILE), JSON.stringify({ har: resolve(file) }) + "\n");
-
-    const rest = result.operations.filter((op) => !op.graphql).length;
-    const graphql = result.operations.length - rest;
-    console.log(`site: ${result.filter.site}`);
-    console.log(`kept ${result.filter.kept.length} requests → ${rest} REST + ${graphql} GraphQL operations`);
-    console.log(`wrote ${join(opts.out, "openapi.yaml")} and ${join(opts.out, "report.md")}`);
+  .action(async (file: string, opts: AnalyzeCliOptions) => {
+    await analyzeToDir(file, opts);
   });
+
+interface AnalyzeCliOptions {
+  out: string;
+  site?: string;
+  includeOrigin?: string[];
+  examples: boolean;
+}
+
+/** from-har's work, shared with record and run. */
+async function analyzeToDir(file: string, opts: AnalyzeCliOptions) {
+  const result = analyzeHar(await readFile(file, "utf8"), {
+    source: basename(file),
+    site: opts.site,
+    includeOrigins: opts.includeOrigin,
+    examples: opts.examples,
+  });
+  await mkdir(join(opts.out, dirname(SECRETS_FILE)), { recursive: true });
+  await writeFile(join(opts.out, "openapi.yaml"), result.yaml);
+  await writeFile(join(opts.out, "report.md"), result.report);
+  await writeFile(join(opts.out, SECRETS_FILE), JSON.stringify(result.secrets) + "\n");
+  await writeFile(join(opts.out, SOURCE_FILE), JSON.stringify({ har: resolve(file) }) + "\n");
+
+  const rest = result.operations.filter((op) => !op.graphql).length;
+  const graphql = result.operations.length - rest;
+  console.log(`site: ${result.filter.site}`);
+  console.log(`kept ${result.filter.kept.length} requests → ${rest} REST + ${graphql} GraphQL operations`);
+  console.log(`wrote ${join(opts.out, "openapi.yaml")} and ${join(opts.out, "report.md")}`);
+  return result;
+}
+
+program
+  .command("record")
+  .description("Open a browser, record while you use the site, then analyze the traffic")
+  .argument("<url>", "where to start, e.g. https://app.example.com")
+  .option("-o, --out <dir>", "output directory", "out")
+  .option("--include-origin <host...>", "extra hosts or sites to keep")
+  .option("--profile-dir <dir>", "browser profile to use (keeps your login between runs)", DEFAULT_PROFILE_DIR)
+  .option("--discard-har", "delete the recording after analysis", false)
+  .action(async (url: string, opts: RecordCliOptions) => {
+    await recordToDir(url, opts);
+  });
+
+interface RecordCliOptions {
+  out: string;
+  includeOrigin?: string[];
+  profileDir: string;
+  discardHar: boolean;
+}
+
+/** Returns the site's cookies at the end of the recording, in memory only. */
+async function recordToDir(url: string, opts: RecordCliOptions): Promise<string | undefined> {
+  const harPath = join(opts.out, CAPTURE_FILE);
+  await mkdir(dirname(harPath), { recursive: true });
+  console.log(`Opening ${url} in a separate browser profile (${opts.profileDir}).`);
+  console.log("Log in if needed, then use each feature you want as a tool, twice or more.");
+  console.log("When you are done, press Enter here (or close the tab).");
+
+  const { cookieHeader, endedBy } = await record({ url, harPath, profileDir: opts.profileDir, waitForUser: pressEnter });
+  try {
+    await access(harPath);
+  } catch {
+    throw new Error("The browser quit before the recording was saved. Next time, press Enter here to finish.");
+  }
+  console.log(endedBy === "user" ? "Recording saved." : "Tab closed; recording saved.");
+
+  await analyzeToDir(harPath, { out: opts.out, includeOrigin: opts.includeOrigin, examples: false });
+  if (opts.discardHar) {
+    await rm(harPath);
+    await rm(join(opts.out, SOURCE_FILE), { force: true });
+    console.log("Deleted the recording (--discard-har).");
+  } else {
+    console.log(`The recording at ${harPath} contains your login session; do not share or commit it.`);
+  }
+  return cookieHeader;
+}
+
+function pressEnter(): Promise<void> {
+  if (!process.stdin.isTTY) return new Promise(() => {});
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin });
+    rl.once("line", () => {
+      rl.close();
+      resolve();
+    });
+  });
+}
 
 program
   .command("infer-prompt")
@@ -135,32 +207,55 @@ program
   .option("--input <op.name=value...>", "value for a required input, e.g. get_product.productId=2")
   .option("--har <file>", "capture to replay input values from (default: the one from-har used)")
   .option("--rate <n>", "max requests per second", "1")
-  .action(async (dir: string, opts: { baseUrl?: string; input?: string[]; har?: string; rate: string }) => {
-    const catalog = await loadCatalog(dir);
-    const annotations = (await loadAnnotations(dir, catalog)) ?? { version: 1 as const, operations: {} };
-    const harPath = opts.har ?? (await findCapture(dir));
-    let recorded;
-    if (harPath) {
-      try {
-        recorded = analyzeHar(await readFile(harPath, "utf8")).operations;
-      } catch {
-        console.warn(`warning: could not read ${harPath}; recorded input values will not be replayed`);
-      }
-    }
-    const report = await verify(catalog, annotations, {
-      credentials: { cookie: process.env.SITE2API_COOKIE, bearer: process.env.SITE2API_BEARER },
-      baseUrl: opts.baseUrl,
-      rate: Number(opts.rate),
-      inputs: parseInputs(opts.input ?? []),
-      recorded,
-    });
-    const text = JSON.stringify(report, null, 2) + "\n";
-    const fp = await loadFingerprint(dir);
-    if (fp) assertNoFingerprintedSecrets(text, fp, VERIFY_FILE);
-    await writeFile(join(dir, VERIFY_FILE), text);
-    printVerify(report);
-    console.log(`wrote ${join(dir, VERIFY_FILE)}; next: site2api generate ${dir} --only-verified`);
+  .option("--profile", "use the persistent cookies of the record browser profile", false)
+  .option("--profile-dir <dir>", "browser profile for --profile", DEFAULT_PROFILE_DIR)
+  .action(async (dir: string, opts: VerifyCliOptions) => {
+    await verifyDir(dir, opts);
   });
+
+interface VerifyCliOptions {
+  baseUrl?: string;
+  input?: string[];
+  har?: string;
+  rate: string;
+  profile?: boolean;
+  profileDir?: string;
+  /** Set by `run`: cookies captured at the end of the recording, in memory. */
+  cookie?: string;
+}
+
+async function verifyDir(dir: string, opts: VerifyCliOptions): Promise<VerifyReport> {
+  const catalog = await loadCatalog(dir);
+  const annotations = (await loadAnnotations(dir, catalog)) ?? { version: 1 as const, operations: {} };
+  const harPath = opts.har ?? (await findCapture(dir));
+  let recorded;
+  if (harPath) {
+    try {
+      recorded = analyzeHar(await readFile(harPath, "utf8")).operations;
+    } catch {
+      console.warn(`warning: could not read ${harPath}; recorded input values will not be replayed`);
+    }
+  }
+  let cookie = opts.cookie ?? process.env.SITE2API_COOKIE;
+  if (!cookie && opts.profile) {
+    cookie = await cookiesFromProfile(catalog.baseUrl, opts.profileDir);
+    if (!cookie) console.warn("warning: the profile has no persistent cookies for this site (session cookies end with the browser)");
+  }
+  const report = await verify(catalog, annotations, {
+    credentials: { cookie, bearer: process.env.SITE2API_BEARER },
+    baseUrl: opts.baseUrl,
+    rate: Number(opts.rate),
+    inputs: parseInputs(opts.input ?? []),
+    recorded,
+  });
+  const text = JSON.stringify(report, null, 2) + "\n";
+  const fp = await loadFingerprint(dir);
+  if (fp) assertNoFingerprintedSecrets(text, fp, VERIFY_FILE);
+  await writeFile(join(dir, VERIFY_FILE), text);
+  printVerify(report);
+  console.log(`wrote ${join(dir, VERIFY_FILE)}`);
+  return report;
+}
 
 function parseInputs(pairs: string[]): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
