@@ -35,8 +35,6 @@
 
 ## クイックスタート
 
-> site2api はまだ npm に公開されていません。公開までは `git clone` してから `pnpm install && pnpm build && npm link` を実行し、
-> このページの `npx site2api` を `site2api` に読み替えてください。
 
 **コーディングエージェントで使う**（Claude Code、Cursor、Codex など、
 [Agent Skills](https://agentskills.io) に対応したエージェントならどれでも）: [`skills/site2api`](skills/site2api) を

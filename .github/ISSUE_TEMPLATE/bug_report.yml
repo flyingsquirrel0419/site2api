@@ -32,7 +32,7 @@ body:
     id: version
     attributes:
       label: site2api version or commit
-      placeholder: "0.0.1, or a commit like d85385e"
+      placeholder: "1.0.0, or a commit like d85385e"
     validations:
       required: true
   - type: input

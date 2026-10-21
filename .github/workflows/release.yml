@@ -1,6 +1,6 @@
 name: Release
 
-# Pushing a tag like v0.1.0 publishes that version to npm. The tag must match package.json, the
+# Pushing a tag like v1.0.0 publishes that version to npm. The tag must match package.json, the
 # version must not be on npm yet, and the NPM_TOKEN repository secret must be set; otherwise the
 # run stops before anything is published. The first publish also registers the package name.
 on:

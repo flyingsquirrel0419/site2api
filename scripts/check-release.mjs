@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Decides whether a pushed tag may be published to npm, before anything is built.
 //
-//   node scripts/check-release.mjs v0.1.0
+//   node scripts/check-release.mjs v1.0.0
 //
 // Fails when the tag is malformed, does not match package.json, the version is already on npm
 // (or was published and unpublished, which npm never allows again), or a stable version would
@@ -52,7 +52,7 @@ async function main() {
   const tag = process.argv[2] ?? process.env.GITHUB_REF_NAME;
   if (!tag) fail("No tag given. Usage: node scripts/check-release.mjs v1.2.3");
   if (!tag.startsWith("v") || !parse(tag.slice(1))) {
-    fail(`Tag "${tag}" is not a release tag. Use v<major>.<minor>.<patch>, e.g. v0.1.0 or v0.2.0-beta.1.`);
+    fail(`Tag "${tag}" is not a release tag. Use v<major>.<minor>.<patch>, e.g. v1.1.0 or v1.2.0-beta.1.`);
   }
   const version = tag.slice(1);
 

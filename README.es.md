@@ -35,8 +35,6 @@ llama a cada herramienta de solo lectura contra el sitio en vivo antes de que ll
 
 ## Inicio rápido
 
-> site2api aún no está en npm. Mientras tanto: `git clone`, luego `pnpm install && pnpm build && npm link`,
-> y usa `site2api` donde esta página diga `npx site2api`.
 
 **Con tu agente de programación** (Claude Code, Cursor, Codex, … cualquier agente con
 [Agent Skills](https://agentskills.io)): copia [`skills/site2api`](skills/site2api) en el

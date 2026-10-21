@@ -30,23 +30,21 @@ that is breaking.
 
 ## Which number to bump
 
-### Before 1.0 (now)
-
-Versions are `0.MINOR.PATCH`. Anything may change, but never silently:
+Versions are `MAJOR.MINOR.PATCH`, starting at 1.0.0. Anything in the table above changes only
+with a major release:
 
 | Change | Bump | Example |
 |---|---|---|
-| Breaking: anything in the table above changes incompatibly | **minor** | a flag is renamed, `tools.json` gets a required field, Node 24 becomes the minimum |
+| Breaking: anything in the table above changes incompatibly | **major** | a flag is renamed, `tools.json` gets a required field, Node 24 becomes the minimum |
 | New feature | **minor** | a new command, flag, auth type or LLM provider |
 | Fix, security fix, docs, internal change, or a dependency update that changes nothing above | **patch** | a GraphQL operation was split wrongly, a credential reached `report.md` |
 
 A breaking change is listed under **Changed** in the changelog, starting with **Breaking:**, and
-says what users must do.
+says what users must do. Before removing something, deprecate it in a minor release (it keeps
+working and prints a warning) so users have a release to move off it.
 
-### From 1.0
-
-Standard SemVer: **major** for breaking changes, **minor** for features, **patch** for fixes.
-1.0 ships once the file formats in the table above have gone a few releases without change.
+A security fix may change behaviour in a patch release when keeping the old behaviour would
+leak credentials or let a tool do more than it should. The changelog says so under **Security**.
 
 ### File format versions
 
@@ -88,4 +86,4 @@ fix the cause and re-run the workflow. If the fix needs a new commit, delete the
 new commit, unless the version already reached npm. In that case, release the next patch
 version instead.
 
-The first release is `0.1.0`. It also registers the `site2api` name on npm.
+The first release is `1.0.0`. It also registers the `site2api` name on npm.

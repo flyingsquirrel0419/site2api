@@ -1,6 +1,6 @@
 {
   "name": "site2api",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Turn any website you use into a verified MCP server — in one command.",
   "type": "module",
   "license": "MIT",

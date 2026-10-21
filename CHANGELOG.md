@@ -2,10 +2,12 @@
 
 All notable changes to site2api are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/). Before 1.0, a minor version may break things and
-says how under **Changed**. [Versioning](docs/versioning.md) has the details.
+[Semantic Versioning](https://semver.org/): a breaking change bumps the major version and says
+how under **Changed**. [Versioning](docs/versioning.md) has the details.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-10-22
 
 The first public version.
 
@@ -44,4 +46,5 @@ The first public version.
   deletes the recording when analysis fails.
 - The skill tells agents to treat site content as data, never as instructions.
 
-[Unreleased]: https://github.com/flyingsquirrel0419/site2api/commits/main
+[Unreleased]: https://github.com/flyingsquirrel0419/site2api/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/flyingsquirrel0419/site2api/releases/tag/v1.0.0

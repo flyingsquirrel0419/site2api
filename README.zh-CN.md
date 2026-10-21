@@ -34,8 +34,6 @@
 
 ## 快速开始
 
-> site2api 还没有发布到 npm。在那之前：先 `git clone`，然后 `pnpm install && pnpm build && npm link`，
-> 本文中所有 `npx site2api` 都换成 `site2api`。
 
 **配合你的编程智能体**（Claude Code、Cursor、Codex……任何支持
 [Agent Skills](https://agentskills.io) 的 Agent）：把 [`skills/site2api`](skills/site2api) 复制到

@@ -4,14 +4,14 @@ This walks through one site from nothing to an agent calling it. It takes about 
 
 ## Install
 
-site2api needs Node.js 22.12 or newer. It is not on npm yet, so install it from source:
+site2api needs Node.js 22.12 or newer:
 
 ```bash
-git clone https://github.com/flyingsquirrel0419/site2api && cd site2api
-pnpm install && pnpm build && npm link
+npm install -g site2api
 ```
 
-`npm link` puts `site2api` on your PATH. Recording uses Playwright and your installed Chrome; if
+or prefix each command below with `npx`. To work on site2api itself, build it from source as
+[CONTRIBUTING](../CONTRIBUTING.md) describes. Recording uses Playwright and your installed Chrome; if
 you have no Chrome, run `npx playwright install chromium` once.
 
 To try everything without touching a real site, start the bundled demo shop in another terminal:

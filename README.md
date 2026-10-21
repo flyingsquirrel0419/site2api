@@ -35,8 +35,6 @@ calls every read-only tool against the live site before you ever use it.
 
 ## Quick start
 
-> site2api is not on npm yet. Until it is: `git clone`, then `pnpm install && pnpm build && npm link`,
-> and use `site2api` wherever this page says `npx site2api`.
 
 **With your coding agent** (Claude Code, Cursor, Codex, … any agent with
 [Agent Skills](https://agentskills.io)): copy [`skills/site2api`](skills/site2api) into your

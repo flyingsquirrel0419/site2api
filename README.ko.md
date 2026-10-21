@@ -35,8 +35,6 @@
 
 ## 빠른 시작
 
-> site2api는 아직 npm에 없습니다. 그때까지는 `git clone` 후 `pnpm install && pnpm build && npm link`를 실행하고,
-> 이 문서에서 `npx site2api`라고 쓴 곳마다 `site2api`를 사용하세요.
 
 **코딩 에이전트로** (Claude Code, Cursor, Codex 등
 [Agent Skills](https://agentskills.io)를 지원하는 모든 에이전트): [`skills/site2api`](skills/site2api)를
