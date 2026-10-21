@@ -64,7 +64,7 @@ describe("record", () => {
       rate: 0,
       recorded: analysis.operations,
     });
-    expect(report.summary).toEqual({ pass: 4, fail: 0, skipped: 0, error: 0 });
+    expect(report.summary).toEqual({ pass: 4, warn: 0, fail: 0, skipped: 0, error: 0 });
   });
 
   it("ends when the last tab is closed", async () => {

@@ -218,7 +218,7 @@ program
   .description("Generate a runnable MCP server in <dir>/mcp from openapi.yaml and annotations.json")
   .argument("[dir]", "output directory of from-har", "out")
   .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
-  .option("--only-verified", "keep only read tools that passed `site2api verify`", false)
+  .option("--only-verified", "keep only read tools that passed `site2api verify` (warnings count as passing)", false)
   .action(async (dir: string, opts: { allowWrites: boolean; onlyVerified: boolean }) => {
     await generateDir(dir, opts);
   });
@@ -311,13 +311,19 @@ function parseInputs(pairs: string[]): Record<string, Record<string, string>> {
 }
 
 function printVerify(report: VerifyReport) {
-  const mark = { pass: "✅", fail: "❌", skipped: "⏭ ", error: "⚠️" } as const;
+  const mark = { pass: "✅", warn: "🟡", fail: "❌", skipped: "⏭ ", error: "⚠️" } as const;
   for (const r of report.results) {
-    const detail = r.status === "pass" ? `HTTP ${r.httpStatus}` : (r.reason ?? r.errors?.join("; ") ?? "");
+    const detail =
+      r.status === "pass"
+        ? `HTTP ${r.httpStatus}`
+        : r.status === "warn"
+          ? `HTTP ${r.httpStatus}, but missing: ${r.warnings!.map((w) => w.replace(/: missing/, "")).join("; ")}`
+          : (r.reason ?? r.errors?.join("; ") ?? "");
     console.log(`${mark[r.status]} ${r.tool.padEnd(28)} ${detail}`);
   }
   const s = report.summary;
-  console.log(`\n${s.pass} passed, ${s.fail} failed, ${s.error} errors, ${s.skipped} skipped`);
+  console.log(`\n${s.pass} passed, ${s.warn} with missing fields, ${s.fail} failed, ${s.error} errors, ${s.skipped} skipped`);
+  if (s.warn > 0) console.log("Missing fields are usually optional ones every recorded sample happened to include; they count as passing.");
 }
 
 program

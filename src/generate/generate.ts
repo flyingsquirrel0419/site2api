@@ -146,7 +146,14 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
   return lines.join("\n");
 }
 
-const VERIFIED_MARK: Record<string, string> = { pass: "✅", fail: "⚠️ fail", error: "⚠️ error", skipped: "—", none: "—" };
+const VERIFIED_MARK: Record<string, string> = {
+  pass: "✅",
+  warn: "✅ (fields missing)",
+  fail: "⚠️ fail",
+  error: "⚠️ error",
+  skipped: "—",
+  none: "—",
+};
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "site";

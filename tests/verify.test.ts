@@ -46,7 +46,7 @@ describe("verify against the demo shop", () => {
       recorded: analysis.operations,
       now: fixedNow,
     });
-    expect(report.summary).toEqual({ pass: 6, fail: 0, skipped: 0, error: 0 });
+    expect(report.summary).toEqual({ pass: 6, warn: 0, fail: 0, skipped: 0, error: 0 });
     expect(Object.fromEntries(report.results.map((r) => [r.tool, r.inputs]))).toEqual({
       list_orders: {},
       get_order: { orderId: "link" },
@@ -105,8 +105,28 @@ describe("verify against the demo shop", () => {
       status: "fail",
       httpStatus: 200,
       inputs: { productId: "recording" },
-      errors: ["/discount: missing", "/price: expected number, got string"],
+      errors: ["/price: expected number, got string", "/discount: missing"],
     });
+  });
+
+  it("only warns when fields are missing but every type still matches", async () => {
+    const drifted = express();
+    drifted.get("/api/products/:id", (_req, res) => {
+      res.json({ id: 1, name: "Keyboard", price: 129, tags: [] }); // no discount
+    });
+    drifted.use(createApp());
+    const report = await verify(catalog, none, {
+      credentials: {},
+      baseUrl: await listen(drifted),
+      rate: 0,
+      recorded: analysis.operations,
+    });
+    expect(report.results.find((r) => r.tool === "get_product")).toMatchObject({
+      status: "warn",
+      httpStatus: 200,
+      warnings: ["/discount: missing"],
+    });
+    expect(report.summary.warn).toBe(1);
   });
 });
 
@@ -130,6 +150,11 @@ describe("buildTools with verify results", () => {
     expect(tools.tools.find((t) => t.name === "list_orders")!.verified).toBe("pass");
     expect(tools.tools.find((t) => t.name === "get_order")!.verified).toBe("fail");
     expect(tools.tools.find((t) => t.name === "get_product")!.verified).toBeUndefined();
+  });
+
+  it("counts warnings as passing for onlyVerified", () => {
+    const tools = buildTools(catalog, none, { verified: new Map([["list_orders", "warn" as const]]), onlyVerified: true });
+    expect(tools.tools.map((t) => t.name)).toEqual(["list_orders"]);
   });
 
   it("keeps only passing reads with onlyVerified, but keeps allowed writes", () => {

@@ -11,7 +11,12 @@ import { HttpClient, pointerGet, safeJson, type Args, type Credentials } from ".
 import type { Catalog, CatalogOperation } from "../spec/catalog.js";
 import type { Operation } from "../spec/operations.js";
 
-export type VerifyStatus = "pass" | "fail" | "skipped" | "error";
+/**
+ * pass: matches the recorded schema. warn: works, but fields the recording always had are missing
+ * (usually optional fields every sample happened to include). fail: a type changed, the status was
+ * unexpected, or the body is not JSON — the API itself probably changed.
+ */
+export type VerifyStatus = "pass" | "warn" | "fail" | "skipped" | "error";
 
 export interface VerifyResult {
   operationId: string;
@@ -21,6 +26,8 @@ export interface VerifyResult {
   /** Where each input value came from: link, recording or user. Never the values themselves. */
   inputs?: Record<string, "link" | "recording" | "user">;
   errors?: string[];
+  /** Fields the response did not have (status "warn"). */
+  warnings?: string[];
   reason?: string;
 }
 
@@ -68,7 +75,7 @@ export async function verify(catalog: Catalog, annotations: Annotations, options
   }
 
   const ordered = tools.tools.map((t) => results.get(t.operationId)!);
-  const summary: Record<VerifyStatus, number> = { pass: 0, fail: 0, skipped: 0, error: 0 };
+  const summary: Record<VerifyStatus, number> = { pass: 0, warn: 0, fail: 0, skipped: 0, error: 0 };
   for (const r of ordered) summary[r.status]++;
   return {
     version: 1,
@@ -133,8 +140,14 @@ async function verifyTool(
   const body = safeJson(res.text);
   if (schema) {
     if (body === undefined) return { ...withStatus, status: "fail", errors: ["response is not JSON"] };
-    const errors = schemaErrors(schema, body, op.samples);
-    if (errors.length > 0) return { ...withStatus, status: "fail", errors };
+    const problems = schemaProblems(schema, body, op.samples);
+    const failures = problems.filter((p) => p.kind !== "missing").map((p) => p.message);
+    const missing = problems.filter((p) => p.kind === "missing").map((p) => p.message);
+    if (failures.length > 0) return { ...withStatus, status: "fail", errors: [...failures, ...missing] };
+    if (missing.length > 0) {
+      bodies.set(op.id, body);
+      return { ...withStatus, status: "warn", warnings: missing };
+    }
   }
   bodies.set(op.id, body);
   return { ...withStatus, status: "pass" };
@@ -220,11 +233,23 @@ function coerce(value: string, schema: Schema): unknown {
 const ajv = new Ajv2020({ strict: false, allErrors: true, validateFormats: false });
 const compiled = new WeakMap<object, ValidateFunction>();
 
+export interface SchemaProblem {
+  kind: "missing" | "type" | "other";
+  message: string;
+}
+
 export function schemaErrors(schema: Schema, body: unknown, samples: number): string[] {
+  return schemaProblems(schema, body, samples).map((p) => p.message);
+}
+
+export function schemaProblems(schema: Schema, body: unknown, samples: number): SchemaProblem[] {
   let validate = compiled.get(schema);
   if (!validate) compiled.set(schema, (validate = ajv.compile(schema)));
   if (validate(body)) return [];
-  return (validate.errors ?? []).map((e) => describeError(e, body, samples));
+  return (validate.errors ?? []).map((e) => ({
+    kind: e.keyword === "required" ? "missing" : e.keyword === "type" ? "type" : "other",
+    message: describeError(e, body, samples),
+  }));
 }
 
 function describeError(e: ErrorObject, body: unknown, samples: number): string {

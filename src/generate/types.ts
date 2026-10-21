@@ -48,7 +48,7 @@ export interface ToolDef {
   http: HttpCall;
   auth: ToolAuth;
   /** Outcome of `site2api verify` for this tool; absent when never verified (e.g. writes). */
-  verified?: "pass" | "fail" | "skipped" | "error";
+  verified?: "pass" | "warn" | "fail" | "skipped" | "error";
 }
 
 export interface ToolsFile {

@@ -8,7 +8,7 @@ export interface BuildToolsOptions {
   allowWrites?: boolean;
   /** Results of `site2api verify`, by operationId. */
   verified?: Map<string, NonNullable<ToolDef["verified"]>>;
-  /** Drop read tools that did not pass verify. Writes are never called by verify, so they are kept. */
+  /** Drop read tools that did not pass verify ("warn" counts as passing). Writes are never called by verify, so they are kept. */
   onlyVerified?: boolean;
 }
 
@@ -26,7 +26,7 @@ export function buildTools(catalog: Catalog, annotations: Annotations, options: 
     else if (kind === "auth") skipped.push({ operationId: op.id, reason: "login/session operation (never exposed)" });
     else if (kind === "write" && !options.allowWrites) {
       skipped.push({ operationId: op.id, reason: "changes data (re-run generate with --allow-writes)" });
-    } else if (kind === "read" && options.onlyVerified && options.verified?.get(op.id) !== "pass") {
+    } else if (kind === "read" && options.onlyVerified && !["pass", "warn"].includes(options.verified?.get(op.id) ?? "")) {
       skipped.push({ operationId: op.id, reason: `did not pass verify (${options.verified?.get(op.id) ?? "not verified"})` });
     } else {
       const verified = options.verified?.get(op.id);
