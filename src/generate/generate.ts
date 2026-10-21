@@ -1,23 +1,18 @@
 // `site2api generate <dir>`: openapi.yaml (+ annotations.json) → <dir>/mcp/, a runnable MCP server.
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { parse } from "yaml";
-import { validateAnnotations, type Annotations } from "../infer/annotations.js";
-import { assertNoFingerprintedSecrets, type SecretFingerprint } from "../redact.js";
-import { readCatalog } from "../spec/catalog.js";
+import type { Annotations } from "../infer/annotations.js";
+import { assertNoFingerprintedSecrets } from "../redact.js";
+import type { VerifyReport } from "../verify/verify.js";
+import { loadAnnotations, loadCatalog, loadFingerprint, readOptional, SECRETS_FILE, VERIFY_FILE } from "../workspace.js";
 import { buildTools } from "./tools.js";
-import type { ToolsFile } from "./types.js";
+import type { ToolDef, ToolsFile } from "./types.js";
 
-export const SECRETS_FILE = join(".site2api", "secrets.json");
-
-export class AnnotationsError extends Error {
-  constructor(readonly errors: string[]) {
-    super(`annotations.json is invalid:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
-  }
-}
+export { AnnotationsError, SECRETS_FILE, VERIFY_FILE } from "../workspace.js";
 
 export interface GenerateOptions {
   allowWrites?: boolean;
+  onlyVerified?: boolean;
   /** Path of the bundled runtime (dist/runtime/server.mjs). */
   runtimePath: string;
 }
@@ -30,32 +25,32 @@ export interface GenerateResult {
 }
 
 export async function generate(dir: string, options: GenerateOptions): Promise<GenerateResult> {
-  const catalog = readCatalog(parse(await readFile(join(dir, "openapi.yaml"), "utf8")));
+  const catalog = await loadCatalog(dir);
   const warnings: string[] = [];
 
-  let annotations: Annotations = { version: 1, operations: {} };
-  const rawAnnotations = await readOptional(join(dir, "annotations.json"));
-  if (rawAnnotations !== undefined) {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(rawAnnotations);
-    } catch (err) {
-      throw new AnnotationsError([`(root): not valid JSON (${err instanceof Error ? err.message : String(err)})`]);
-    }
-    const result = validateAnnotations(raw, catalog);
-    if (!result.ok) throw new AnnotationsError(result.errors);
-    annotations = result.annotations;
-  } else {
+  const loaded = await loadAnnotations(dir, catalog);
+  const annotations: Annotations = loaded ?? { version: 1, operations: {} };
+  if (!loaded) {
     warnings.push("No annotations.json: tools use heuristic names. Run `site2api infer-prompt` and let your agent annotate.");
   }
 
-  const tools = buildTools(catalog, annotations, { allowWrites: options.allowWrites });
+  let verified: Map<string, NonNullable<ToolDef["verified"]>> | undefined;
+  const rawVerify = await readOptional(join(dir, VERIFY_FILE));
+  if (rawVerify !== undefined) {
+    const report = JSON.parse(rawVerify) as VerifyReport;
+    verified = new Map(report.results.map((r) => [r.operationId, r.status]));
+  } else if (options.onlyVerified) {
+    throw new Error(`--only-verified needs ${VERIFY_FILE}; run \`site2api verify ${dir}\` first.`);
+  } else {
+    warnings.push("Not verified yet: run `site2api verify` to check every read tool against the live site.");
+  }
+
+  const tools = buildTools(catalog, annotations, { allowWrites: options.allowWrites, verified, onlyVerified: options.onlyVerified });
   const toolsJson = JSON.stringify(tools, null, 2) + "\n";
   const readme = renderReadme(tools, resolve(dir, "mcp", "server.mjs"));
 
-  const fingerprint = await readOptional(join(dir, SECRETS_FILE));
-  if (fingerprint !== undefined) {
-    const fp = JSON.parse(fingerprint) as SecretFingerprint;
+  const fp = await loadFingerprint(dir);
+  if (fp) {
     assertNoFingerprintedSecrets(toolsJson, fp, "tools.json");
     assertNoFingerprintedSecrets(readme, fp, "README.md");
   } else {
@@ -77,16 +72,7 @@ export async function generate(dir: string, options: GenerateOptions): Promise<G
   );
   await copyFile(options.runtimePath, join(outDir, "server.mjs"));
 
-  return { outDir, tools, annotated: rawAnnotations !== undefined, warnings };
-}
-
-async function readOptional(path: string): Promise<string | undefined> {
-  try {
-    return await readFile(path, "utf8");
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw err;
-  }
+  return { outDir, tools, annotated: loaded !== undefined, warnings };
 }
 
 function renderReadme(tools: ToolsFile, serverPath: string): string {
@@ -106,9 +92,12 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
     "",
     "## Tools",
     "",
-    "| Tool | Kind | Description |",
-    "|---|---|---|",
-    ...tools.tools.map((t) => `| \`${t.name}\` | ${t.kind} | ${t.description.split("\n")[0]!.replace(/\|/g, "\\|")} |`),
+    "| Tool | Kind | Verified | Description |",
+    "|---|---|---|---|",
+    ...tools.tools.map(
+      (t) =>
+        `| \`${t.name}\` | ${t.kind} | ${VERIFIED_MARK[t.verified ?? "none"]} | ${t.description.split("\n")[0]!.replace(/\|/g, "\\|")} |`,
+    ),
     "",
   ];
   if (tools.skipped.length > 0) {
@@ -151,6 +140,8 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
   );
   return lines.join("\n");
 }
+
+const VERIFIED_MARK: Record<string, string> = { pass: "✅", fail: "⚠️ fail", error: "⚠️ error", skipped: "—", none: "—" };
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "site";

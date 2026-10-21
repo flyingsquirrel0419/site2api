@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse } from "yaml";
+import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
-import { AnnotationsError, generate, SECRETS_FILE } from "./generate/generate.js";
 import { analyzeHar } from "./pipeline.js";
-import { readCatalog } from "./spec/catalog.js";
+import { assertNoFingerprintedSecrets } from "./redact.js";
+import { verify, type VerifyReport } from "./verify/verify.js";
+import {
+  AnnotationsError,
+  findCapture,
+  loadAnnotations,
+  loadCatalog,
+  loadFingerprint,
+  SECRETS_FILE,
+  SOURCE_FILE,
+  VERIFY_FILE,
+} from "./workspace.js";
 
 const program = new Command()
   .name("site2api")
@@ -35,6 +45,7 @@ program
     await writeFile(join(opts.out, "report.md"), result.report);
     await mkdir(join(opts.out, dirname(SECRETS_FILE)), { recursive: true });
     await writeFile(join(opts.out, SECRETS_FILE), JSON.stringify(result.secrets) + "\n");
+    await writeFile(join(opts.out, SOURCE_FILE), JSON.stringify({ har: resolve(file) }) + "\n");
 
     const rest = result.operations.filter((op) => !op.graphql).length;
     const graphql = result.operations.length - rest;
@@ -48,7 +59,7 @@ program
   .description("Write infer/context.md and infer/annotations.schema.json for your agent to annotate")
   .argument("[dir]", "output directory of from-har", "out")
   .action(async (dir: string) => {
-    const catalog = readCatalog(parse(await readFile(join(dir, "openapi.yaml"), "utf8")));
+    const catalog = await loadCatalog(dir);
     await mkdir(join(dir, "infer"), { recursive: true });
     await writeFile(join(dir, "infer", "context.md"), renderContext(catalog));
     await writeFile(join(dir, "infer", "annotations.schema.json"), JSON.stringify(annotationsJsonSchema(), null, 2) + "\n");
@@ -61,10 +72,11 @@ program
   .description("Generate a runnable MCP server in <dir>/mcp from openapi.yaml and annotations.json")
   .argument("[dir]", "output directory of from-har", "out")
   .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
-  .action(async (dir: string, opts: { allowWrites: boolean }) => {
+  .option("--only-verified", "keep only read tools that passed `site2api verify`", false)
+  .action(async (dir: string, opts: { allowWrites: boolean; onlyVerified: boolean }) => {
     const runtimePath = fileURLToPath(new URL("./runtime/server.mjs", import.meta.url));
     try {
-      const result = await generate(dir, { allowWrites: opts.allowWrites, runtimePath });
+      const result = await generate(dir, { allowWrites: opts.allowWrites, onlyVerified: opts.onlyVerified, runtimePath });
       for (const w of result.warnings) console.warn(`warning: ${w}`);
       console.log(`${result.tools.tools.length} tools, ${result.tools.skipped.length} skipped → ${result.outDir}`);
       for (const t of result.tools.tools) console.log(`  ${t.kind === "write" ? "✎" : "·"} ${t.name}`);
@@ -78,6 +90,61 @@ program
       throw err;
     }
   });
+
+program
+  .command("verify")
+  .description("Call every read-only operation on the live site and check responses against the spec")
+  .argument("[dir]", "output directory of from-har", "out")
+  .option("--base-url <url>", "call this origin instead of the recorded one")
+  .option("--input <op.name=value...>", "value for a required input, e.g. get_product.productId=2")
+  .option("--har <file>", "capture to replay input values from (default: the one from-har used)")
+  .option("--rate <n>", "max requests per second", "1")
+  .action(async (dir: string, opts: { baseUrl?: string; input?: string[]; har?: string; rate: string }) => {
+    const catalog = await loadCatalog(dir);
+    const annotations = (await loadAnnotations(dir, catalog)) ?? { version: 1 as const, operations: {} };
+    const harPath = opts.har ?? (await findCapture(dir));
+    let recorded;
+    if (harPath) {
+      try {
+        recorded = analyzeHar(await readFile(harPath, "utf8")).operations;
+      } catch {
+        console.warn(`warning: could not read ${harPath}; recorded input values will not be replayed`);
+      }
+    }
+    const report = await verify(catalog, annotations, {
+      credentials: { cookie: process.env.SITE2API_COOKIE, bearer: process.env.SITE2API_BEARER },
+      baseUrl: opts.baseUrl,
+      rate: Number(opts.rate),
+      inputs: parseInputs(opts.input ?? []),
+      recorded,
+    });
+    const text = JSON.stringify(report, null, 2) + "\n";
+    const fp = await loadFingerprint(dir);
+    if (fp) assertNoFingerprintedSecrets(text, fp, VERIFY_FILE);
+    await writeFile(join(dir, VERIFY_FILE), text);
+    printVerify(report);
+    console.log(`wrote ${join(dir, VERIFY_FILE)}; next: site2api generate ${dir} --only-verified`);
+  });
+
+function parseInputs(pairs: string[]): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const pair of pairs) {
+    const m = /^([^.=]+)\.([^=]+)=(.*)$/s.exec(pair);
+    if (!m) throw new Error(`--input must look like operation.input=value, got "${pair}"`);
+    (out[m[1]!] ??= {})[m[2]!] = m[3]!;
+  }
+  return out;
+}
+
+function printVerify(report: VerifyReport) {
+  const mark = { pass: "✅", fail: "❌", skipped: "⏭ ", error: "⚠️" } as const;
+  for (const r of report.results) {
+    const detail = r.status === "pass" ? `HTTP ${r.httpStatus}` : (r.reason ?? r.errors?.join("; ") ?? "");
+    console.log(`${mark[r.status]} ${r.tool.padEnd(28)} ${detail}`);
+  }
+  const s = report.summary;
+  console.log(`\n${s.pass} passed, ${s.fail} failed, ${s.error} errors, ${s.skipped} skipped`);
+}
 
 program.parseAsync().catch((err: unknown) => {
   console.error(`site2api: ${err instanceof Error ? err.message : String(err)}`);

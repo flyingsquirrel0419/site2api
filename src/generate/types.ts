@@ -32,6 +32,8 @@ export interface ToolDef {
   inputSchema: Record<string, unknown>;
   http: HttpCall;
   auth: ToolAuth;
+  /** Outcome of `site2api verify` for this tool; absent when never verified (e.g. writes). */
+  verified?: "pass" | "fail" | "skipped" | "error";
 }
 
 export interface ToolsFile {

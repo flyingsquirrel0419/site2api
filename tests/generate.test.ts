@@ -78,7 +78,9 @@ describe("generate", () => {
   it("writes a runnable package", async () => {
     const dir = await outDir({ version: 1, site: { name: "Demo Shop" } });
     const result = await generate(dir, { runtimePath });
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings).toEqual([
+      "Not verified yet: run `site2api verify` to check every read tool against the live site.",
+    ]);
     const pkg = JSON.parse(await readFile(join(dir, "mcp", "package.json"), "utf8"));
     expect(pkg).toMatchObject({ name: "demo-shop-mcp", type: "module", bin: "server.mjs" });
     const readme = await readFile(join(dir, "mcp", "README.md"), "utf8");
