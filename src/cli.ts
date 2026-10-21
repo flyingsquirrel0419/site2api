@@ -6,15 +6,18 @@ import { fileURLToPath } from "node:url";
 import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
+import { inferAnnotations, providerFromEnv, type ProviderName } from "./infer/llm/infer.js";
 import { analyzeHar } from "./pipeline.js";
 import { assertNoFingerprintedSecrets } from "./redact.js";
 import { verify, type VerifyReport } from "./verify/verify.js";
 import {
+  ANNOTATIONS_FILE,
   AnnotationsError,
   findCapture,
   loadAnnotations,
   loadCatalog,
   loadFingerprint,
+  readOptional,
   SECRETS_FILE,
   SOURCE_FILE,
   VERIFY_FILE,
@@ -65,6 +68,39 @@ program
     await writeFile(join(dir, "infer", "annotations.schema.json"), JSON.stringify(annotationsJsonSchema(), null, 2) + "\n");
     console.log(`wrote ${join(dir, "infer", "context.md")} (${catalog.operations.length} operations)`);
     console.log(`next: read it, write ${join(dir, "annotations.json")}, then run: site2api generate ${dir}`);
+  });
+
+program
+  .command("infer")
+  .description("Annotate operations with an LLM API instead of a coding agent (Claude or any OpenAI-compatible API)")
+  .argument("[dir]", "output directory of from-har", "out")
+  .option("--provider <name>", "anthropic or openai (OpenAI-compatible); inferred from env when omitted")
+  .option("--model <id>", "model id (default: claude-opus-5-5 for anthropic; SITE2API_LLM_MODEL for openai)")
+  .option("--force", "overwrite an existing annotations.json", false)
+  .action(async (dir: string, opts: { provider?: string; model?: string; force: boolean }) => {
+    if (opts.provider && opts.provider !== "anthropic" && opts.provider !== "openai") {
+      throw new Error(`--provider must be anthropic or openai, got "${opts.provider}"`);
+    }
+    if (!opts.force && (await readOptional(join(dir, ANNOTATIONS_FILE))) !== undefined) {
+      throw new Error(`${join(dir, ANNOTATIONS_FILE)} already exists; pass --force to replace it.`);
+    }
+    const catalog = await loadCatalog(dir);
+    const context = renderContext(catalog);
+    const fp = await loadFingerprint(dir);
+    if (fp) assertNoFingerprintedSecrets(context, fp, "the LLM request");
+
+    const provider = providerFromEnv(opts.provider as ProviderName | undefined, opts.model);
+    console.log(`annotating ${catalog.operations.length} operations with ${provider.label}…`);
+    const { annotations, attempts } = await inferAnnotations(catalog, provider, context);
+    const text = JSON.stringify(annotations, null, 2) + "\n";
+    if (fp) assertNoFingerprintedSecrets(text, fp, ANNOTATIONS_FILE);
+    await writeFile(join(dir, ANNOTATIONS_FILE), text);
+
+    for (const [id, a] of Object.entries(annotations.operations)) {
+      const label = a.include === false ? "excluded" : a.kind;
+      console.log(`  ${(a.tool ?? id).padEnd(28)} ${label}`);
+    }
+    console.log(`wrote ${join(dir, ANNOTATIONS_FILE)}${attempts > 1 ? ` after ${attempts} attempts` : ""}; review it, then: site2api generate ${dir}`);
   });
 
 program

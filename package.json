@@ -30,6 +30,7 @@
     "claude-code"
   ],
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "ajv": "^8.20.0",
     "commander": "^15.0.0",
     "yaml": "^2.9.1",
