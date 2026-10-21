@@ -2,6 +2,7 @@
 // 1. redactValue() scrubs example values before they are placed in the spec.
 // 2. assertNoSecrets() is the last gate before anything is written: every credential-like
 //    value seen in the capture is collected, and the output must contain none of them.
+import { createHash, randomBytes } from "node:crypto";
 import { cookies, header, parseJson, setCookies, type Exchange } from "./capture/har.js";
 
 const SENSITIVE_KEY = /pass(?:word|wd)?|secret|token|auth|session|csrf|xsrf|api[-_]?key|cookie|otp|pin\b/i;
@@ -61,4 +62,44 @@ export function assertNoSecrets(output: string, secrets: string[], label: string
     const preview = leaked.map((s) => `${s.slice(0, 3)}…(${s.length} chars)`).join(", ");
     throw new SecretLeakError(`Refusing to write ${label}: it contains captured credential values (${preview}).`);
   }
+}
+
+// Later stages (generate) no longer have the HAR, so from-har leaves salted hashes of the
+// credential values behind. Output is split into tokens and each token is hashed and looked up,
+// which catches a cookie or token pasted anywhere (e.g. into an annotation description).
+export interface SecretFingerprint {
+  salt: string;
+  hashes: string[];
+}
+
+export function fingerprintSecrets(secrets: string[]): SecretFingerprint {
+  const salt = randomBytes(16).toString("hex");
+  return { salt, hashes: [...new Set(secrets.map((s) => hash(salt, s)))].sort() };
+}
+
+export function assertNoFingerprintedSecrets(output: string, fp: SecretFingerprint, label: string): void {
+  const known = new Set(fp.hashes);
+  const leaked = candidates(output).filter((token) => known.has(hash(fp.salt, token)));
+  if (leaked.length > 0) {
+    throw new SecretLeakError(
+      `Refusing to write ${label}: it contains ${leaked.length} value(s) captured as credentials in the HAR. Remove them and retry.`,
+    );
+  }
+}
+
+function candidates(text: string): string[] {
+  const out = new Set<string>();
+  for (const token of text.match(/[^\s"'`,;<>(){}\[\]]+/g) ?? []) {
+    if (token.length < MIN_SECRET_LENGTH) continue;
+    out.add(token);
+    // "sid=abc…" and "Bearer abc…" pieces
+    const eq = token.indexOf("=");
+    if (eq > 0) out.add(token.slice(eq + 1));
+    out.add(token.replace(/[.:]+$/, ""));
+  }
+  return [...out];
+}
+
+function hash(salt: string, value: string): string {
+  return createHash("sha256").update(salt).update("\0").update(value).digest("hex");
 }

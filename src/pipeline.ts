@@ -3,7 +3,7 @@ import { parseHar } from "./capture/har.js";
 import { detectAuth } from "./normalize/auth.js";
 import { filterExchanges, type FilterResult } from "./normalize/filter.js";
 import { findDependencies, type Dependencies } from "./normalize/links.js";
-import { assertNoSecrets, collectSecrets } from "./redact.js";
+import { assertNoSecrets, collectSecrets, fingerprintSecrets, type SecretFingerprint } from "./redact.js";
 import { renderReport } from "./report.js";
 import { buildSpec } from "./spec/openapi.js";
 import { groupOperations, type Operation } from "./spec/operations.js";
@@ -22,6 +22,8 @@ export interface AnalyzeResult {
   operations: Operation[];
   dependencies: Dependencies;
   filter: FilterResult;
+  /** Salted hashes of captured credentials, so later stages can check their output too. */
+  secrets: SecretFingerprint;
 }
 
 export function analyzeHar(text: string, options: AnalyzeOptions = {}): AnalyzeResult {
@@ -47,5 +49,5 @@ export function analyzeHar(text: string, options: AnalyzeOptions = {}): AnalyzeR
   assertNoSecrets(yaml, secrets, "openapi.yaml");
   assertNoSecrets(report, secrets, "report.md");
 
-  return { spec, yaml, report, operations, dependencies, filter };
+  return { spec, yaml, report, operations, dependencies, filter, secrets: fingerprintSecrets(secrets) };
 }

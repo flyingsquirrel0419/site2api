@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "site": {
+    "name": "localhost"
+  },
+  "baseUrl": "http://localhost:4317",
+  "tools": [
+    {
+      "name": "post_cart",
+      "description": "Post cart. (Auto-generated name; recorded from POST /api/cart.)",
+      "operationId": "post_cart",
+      "kind": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "integer"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Must be true. This changes data on localhost; only set it after the user agreed to this exact action."
+          }
+        },
+        "required": [
+          "productId",
+          "confirm"
+        ],
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "POST",
+        "url": "http://localhost:4317/api/cart",
+        "inputs": [
+          {
+            "name": "productId",
+            "in": "body",
+            "source": "productId"
+          },
+          {
+            "name": "quantity",
+            "in": "body",
+            "source": "quantity"
+          }
+        ],
+        "bodyType": "application/json"
+      },
+      "auth": {
+        "cookie": true,
+        "bearer": false,
+        "csrf": true
+      }
+    },
+    {
+      "name": "list_orders",
+      "description": "List orders. (Auto-generated name; recorded from GET /api/orders.)",
+      "operationId": "list_orders",
+      "kind": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "GET",
+        "url": "http://localhost:4317/api/orders",
+        "inputs": []
+      },
+      "auth": {
+        "cookie": true,
+        "bearer": false,
+        "csrf": false
+      }
+    },
+    {
+      "name": "get_order",
+      "description": "Get order. (Auto-generated name; recorded from GET /api/orders/{orderId}.)\nInput `orderId`: use a value from `list_orders` results at /orders/*/id.",
+      "operationId": "get_order",
+      "kind": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "orderId"
+        ],
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "GET",
+        "url": "http://localhost:4317/api/orders/{orderId}",
+        "inputs": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "source": "orderId"
+          }
+        ]
+      },
+      "auth": {
+        "cookie": true,
+        "bearer": false,
+        "csrf": false
+      }
+    },
+    {
+      "name": "list_products",
+      "description": "List products. (Auto-generated name; recorded from GET /api/products.)",
+      "operationId": "list_products",
+      "kind": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "q": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "GET",
+        "url": "http://localhost:4317/api/products",
+        "inputs": [
+          {
+            "name": "page",
+            "in": "query",
+            "source": "page"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "source": "q"
+          }
+        ]
+      },
+      "auth": {
+        "cookie": false,
+        "bearer": false,
+        "csrf": false
+      }
+    },
+    {
+      "name": "get_product",
+      "description": "Get product. (Auto-generated name; recorded from GET /api/products/{productId}.)",
+      "operationId": "get_product",
+      "kind": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "productId"
+        ],
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "GET",
+        "url": "http://localhost:4317/api/products/{productId}",
+        "inputs": [
+          {
+            "name": "productId",
+            "in": "path",
+            "source": "productId"
+          }
+        ]
+      },
+      "auth": {
+        "cookie": false,
+        "bearer": false,
+        "csrf": false
+      }
+    },
+    {
+      "name": "graphql_recommendations",
+      "description": "query Recommendations. (Auto-generated name; recorded from POST /graphql.)",
+      "operationId": "graphql_recommendations",
+      "kind": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "POST",
+        "url": "http://localhost:4317/graphql",
+        "inputs": [
+          {
+            "name": "limit",
+            "in": "variables",
+            "source": "limit"
+          }
+        ],
+        "bodyType": "application/json",
+        "graphql": {
+          "operationName": "Recommendations",
+          "query": "query Recommendations($limit: Int) { recommendations(limit: $limit) { id name } }"
+        }
+      },
+      "auth": {
+        "cookie": true,
+        "bearer": false,
+        "csrf": false
+      }
+    },
+    {
+      "name": "graphql_viewer",
+      "description": "query Viewer. (Auto-generated name; recorded from POST /graphql.)",
+      "operationId": "graphql_viewer",
+      "kind": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "http": {
+        "method": "POST",
+        "url": "http://localhost:4317/graphql",
+        "inputs": [],
+        "bodyType": "application/json",
+        "graphql": {
+          "operationName": "Viewer",
+          "query": "query Viewer { viewer { email orderCount } }"
+        }
+      },
+      "auth": {
+        "cookie": true,
+        "bearer": false,
+        "csrf": false
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "operationId": "post_login",
+      "reason": "login/session operation (never exposed)"
+    },
+    {
+      "operationId": "get_session",
+      "reason": "login/session operation (never exposed)"
+    }
+  ],
+  "csrf": {
+    "header": "x-csrf-token",
+    "source": {
+      "http": {
+        "method": "GET",
+        "url": "http://localhost:4317/api/session",
+        "inputs": []
+      },
+      "pointer": "/csrfToken"
+    }
+  }
+}

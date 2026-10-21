@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
+import { AnnotationsError, generate, SECRETS_FILE } from "./generate/generate.js";
 import { analyzeHar } from "./pipeline.js";
 import { readCatalog } from "./spec/catalog.js";
 
@@ -31,6 +33,8 @@ program
     await mkdir(opts.out, { recursive: true });
     await writeFile(join(opts.out, "openapi.yaml"), result.yaml);
     await writeFile(join(opts.out, "report.md"), result.report);
+    await mkdir(join(opts.out, dirname(SECRETS_FILE)), { recursive: true });
+    await writeFile(join(opts.out, SECRETS_FILE), JSON.stringify(result.secrets) + "\n");
 
     const rest = result.operations.filter((op) => !op.graphql).length;
     const graphql = result.operations.length - rest;
@@ -50,6 +54,29 @@ program
     await writeFile(join(dir, "infer", "annotations.schema.json"), JSON.stringify(annotationsJsonSchema(), null, 2) + "\n");
     console.log(`wrote ${join(dir, "infer", "context.md")} (${catalog.operations.length} operations)`);
     console.log(`next: read it, write ${join(dir, "annotations.json")}, then run: site2api generate ${dir}`);
+  });
+
+program
+  .command("generate")
+  .description("Generate a runnable MCP server in <dir>/mcp from openapi.yaml and annotations.json")
+  .argument("[dir]", "output directory of from-har", "out")
+  .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
+  .action(async (dir: string, opts: { allowWrites: boolean }) => {
+    const runtimePath = fileURLToPath(new URL("./runtime/server.mjs", import.meta.url));
+    try {
+      const result = await generate(dir, { allowWrites: opts.allowWrites, runtimePath });
+      for (const w of result.warnings) console.warn(`warning: ${w}`);
+      console.log(`${result.tools.tools.length} tools, ${result.tools.skipped.length} skipped → ${result.outDir}`);
+      for (const t of result.tools.tools) console.log(`  ${t.kind === "write" ? "✎" : "·"} ${t.name}`);
+      console.log(`see ${join(result.outDir, "README.md")} to register it with your agent`);
+    } catch (err) {
+      if (err instanceof AnnotationsError) {
+        console.error(err.message);
+        console.error("Fix annotations.json and run generate again.");
+        process.exit(2);
+      }
+      throw err;
+    }
   });
 
 program.parseAsync().catch((err: unknown) => {

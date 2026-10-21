@@ -8,7 +8,8 @@ The format is in `infer/annotations.schema.json`. Rules:
 - `description`: what it returns or does, when to use it, and where its inputs come from.
 - `params`: one short description per input name listed below. Use only those names.
 - `kind`: `read` (no side effects), `write` (changes data: orders, carts, messages, settings), or
-  `auth` (login/logout/session). `auth` operations are never exposed as tools.
+  `auth` (login/logout/session, or returns a CSRF/session token). `auth` operations are never
+  exposed as tools; the server still calls a CSRF source internally when needed.
 - `include: false` to drop noise (telemetry, feature flags, health checks).
 - Annotate only what you can judge; unannotated operations keep their defaults.
 
@@ -46,7 +47,7 @@ The format is in `infer/annotations.schema.json`. Rules:
 - response 200: { id: integer, name: string, price: number, tags: string[], discount: number | null }
 
 ### get_session — GET /api/session
-- default kind: read; samples: 1; auth: cookie sid
+- default kind: auth; samples: 1; auth: cookie sid
 - response 200: { csrfToken: string, user: { email: string(email) } }
 
 ### graphql_recommendations — GraphQL query Recommendations (POST /graphql)

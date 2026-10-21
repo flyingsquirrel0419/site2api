@@ -37,6 +37,8 @@ export interface CatalogOperation {
   writes: boolean;
   /** Sets the session cookie: a login-style operation. */
   setsSession: boolean;
+  /** Hands out credentials: sets the session, or is the source of the CSRF or bearer token. */
+  providesAuth: boolean;
   samples: number;
 }
 
@@ -71,6 +73,9 @@ export function readCatalog(spec: Json): Catalog {
   const schemes: Json = spec.components?.securitySchemes ?? {};
   const auth = spec["x-site2api-auth"] ?? {};
   const setBy = new Set<string>(auth.session?.setBy ?? []);
+  const authSources = new Set<string>(
+    [auth.csrf?.source?.operationId, auth.bearer?.source?.operationId].filter((id): id is string => !!id),
+  );
   const operations: CatalogOperation[] = [];
 
   for (const [path, item] of Object.entries<Json>(spec.paths ?? {})) {
@@ -104,6 +109,7 @@ export function readCatalog(spec: Json): Catalog {
         auth: authOf(op.security, schemes),
         writes: !!op["x-site2api"]?.writes,
         setsSession: setBy.has(op.operationId),
+        providesAuth: setBy.has(op.operationId) || authSources.has(op.operationId),
         samples: op["x-site2api"]?.samples ?? 0,
       });
     }
@@ -126,6 +132,7 @@ export function readCatalog(spec: Json): Catalog {
       auth: authOf(g.security, schemes),
       writes: !!g["x-site2api"]?.writes,
       setsSession: setBy.has(g.operationId),
+      providesAuth: setBy.has(g.operationId) || authSources.has(g.operationId),
       samples: g["x-site2api"]?.samples ?? 0,
     });
   }
@@ -171,6 +178,6 @@ function authOf(security: Json[] | undefined, schemes: Json): CatalogAuth {
 
 /** Default classification before the agent weighs in. */
 export function defaultKind(op: CatalogOperation): "read" | "write" | "auth" {
-  if (op.setsSession) return "auth";
+  if (op.providesAuth) return "auth";
   return op.writes ? "write" : "read";
 }
