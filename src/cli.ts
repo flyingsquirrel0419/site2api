@@ -4,7 +4,7 @@ import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cookiesFromProfile, DEFAULT_PROFILE_DIR, record } from "./capture/record.js";
+import { cookiesFromProfile, DEFAULT_PROFILE_DIR, loadCaptureScript, record } from "./capture/record.js";
 import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
@@ -81,6 +81,9 @@ program
   .option("--include-origin <host...>", "extra hosts or sites to keep")
   .option("--profile-dir <dir>", "browser profile to use (keeps your login between runs)", DEFAULT_PROFILE_DIR)
   .option("--discard-har", "delete the recording after analysis", false)
+  .option("--script <file>", "drive the site with a capture script (.mjs) instead of by hand; runs headless")
+  .option("--headed", "show the browser window while a script runs", false)
+  .option("--max-requests <n>", "stop a script after this many page loads + API calls", "60")
   .action(async (url: string, opts: RecordCliOptions) => {
     await recordToDir(url, opts);
   });
@@ -90,23 +93,47 @@ interface RecordCliOptions {
   includeOrigin?: string[];
   profileDir: string;
   discardHar: boolean;
+  script?: string;
+  headed?: boolean;
+  maxRequests?: string;
 }
 
 /** Returns the site's cookies at the end of the recording, in memory only. */
 async function recordToDir(url: string, opts: RecordCliOptions): Promise<string | undefined> {
   const harPath = join(opts.out, CAPTURE_FILE);
   await mkdir(dirname(harPath), { recursive: true });
-  console.log(`Opening ${url} in a separate browser profile (${opts.profileDir}).`);
-  console.log("Log in if needed, then use each feature you want as a tool, twice or more.");
-  console.log("When you are done, press Enter here (or close the tab).");
+  const script = opts.script ? await loadCaptureScript(opts.script) : undefined;
+  const maxRequests = Number(opts.maxRequests ?? 60);
+  if (script) {
+    console.log(`Running ${opts.script} against ${url} (profile ${opts.profileDir}, at most ${maxRequests} requests).`);
+  } else {
+    console.log(`Opening ${url} in a separate browser profile (${opts.profileDir}).`);
+    console.log("Log in if needed, then use each feature you want as a tool, twice or more.");
+    console.log("When you are done, press Enter here (or close the tab).");
+  }
 
-  const { cookieHeader, endedBy } = await record({ url, harPath, profileDir: opts.profileDir, waitForUser: pressEnter });
+  const { cookieHeader, endedBy, requests, scriptError } = await record({
+    url,
+    harPath,
+    profileDir: opts.profileDir,
+    waitForUser: pressEnter,
+    script,
+    headless: script ? !opts.headed : false,
+    maxRequests,
+  });
   try {
     await access(harPath);
   } catch {
     throw new Error("The browser quit before the recording was saved. Next time, press Enter here to finish.");
   }
-  console.log(endedBy === "user" ? "Recording saved." : "Tab closed; recording saved.");
+  const how = {
+    user: "Recording saved.",
+    "browser-closed": "Tab closed; recording saved.",
+    script: "Script finished; recording saved.",
+    "request-limit": `Stopped the script at the ${maxRequests}-request limit; recording saved.`,
+  }[endedBy];
+  console.log(`${how} (${requests} page loads + API calls)`);
+  if (scriptError) console.warn(`warning: the capture script failed: ${scriptError}. Analyzing what was recorded so far.`);
 
   await analyzeToDir(harPath, { out: opts.out, includeOrigin: opts.includeOrigin, examples: false });
   if (opts.discardHar) {
@@ -303,6 +330,9 @@ program
   .option("--model <id>", "LLM model id")
   .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
   .option("--discard-har", "delete the recording after analysis", false)
+  .option("--script <file>", "drive the site with a capture script (.mjs) instead of by hand; runs headless")
+  .option("--headed", "show the browser window while a script runs", false)
+  .option("--max-requests <n>", "stop a script after this many page loads + API calls", "60")
   .action(async (url: string, opts: RecordCliOptions & { provider?: string; model?: string; allowWrites: boolean }) => {
     const dir = opts.out;
     console.log("── 1/4 record");

@@ -1,13 +1,13 @@
 // Drives a real (headless) browser through the demo shop with record(), the way a person would
 // in the visible window, then checks the capture analyzes and verifies with the in-memory cookies.
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../demo/shop/server.js";
-import { cookieHeaderFor, record } from "../src/capture/record.js";
+import { cookieHeaderFor, loadCaptureScript, record } from "../src/capture/record.js";
 import { analyzeHar } from "../src/pipeline.js";
 import { readCatalog } from "../src/spec/catalog.js";
 import { verify } from "../src/verify/verify.js";
@@ -92,5 +92,60 @@ describe("cookieHeaderFor", () => {
     ];
     expect(cookieHeaderFor(cookies, "https://www.shop.com/app")).toBe("sid=a; api=b");
     expect(cookieHeaderFor([], "https://www.shop.com")).toBeUndefined();
+  });
+});
+
+describe("record with a capture script", () => {
+  const run = async (script: Parameters<typeof record>[0]["script"], extra: Partial<Parameters<typeof record>[0]> = {}) => {
+    const dir = await mkdtemp(join(tmpdir(), "site2api-script-"));
+    const harPath = join(dir, "capture.har");
+    const result = await record({ url: baseUrl, harPath, profileDir: join(dir, "profile"), headless: true, channel: null, paceMs: 0, script, ...extra });
+    return { result, har: await readFile(harPath, "utf8") };
+  };
+
+  it("ends when the script returns, and paces steps", async () => {
+    const started = Date.now();
+    const { result, har } = await run(
+      async (page, { pause }) => {
+        await page.evaluate(() => fetch("/api/products?q=hub").then((r) => r.json()));
+        await pause(200);
+        await page.evaluate(() => fetch("/api/products/2").then((r) => r.json()));
+      },
+    );
+    expect(result).toMatchObject({ endedBy: "script", requests: 3 });
+    expect(Date.now() - started).toBeGreaterThanOrEqual(200);
+    expect(analyzeHar(har).operations.map((op) => op.template)).toEqual(["/api/products", "/api/products/{productId}"]);
+  });
+
+  it("stops a script that goes over its request budget", async () => {
+    const { result } = await run(
+      async (page) => {
+        for (let i = 0; i < 50; i++) await page.evaluate(() => fetch("/api/products").then((r) => r.json()));
+      },
+      { maxRequests: 5 },
+    );
+    expect(result.endedBy).toBe("request-limit");
+    expect(result.requests).toBeLessThan(15);
+  });
+
+  it("keeps what was recorded when the script fails", async () => {
+    const { result, har } = await run(async (page) => {
+      await page.evaluate(() => fetch("/api/products").then((r) => r.json()));
+      throw new Error("selector not found");
+    });
+    expect(result).toMatchObject({ endedBy: "script", scriptError: "selector not found" });
+    expect(har).toContain("/api/products");
+  });
+
+  it("loads a script file's default export", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "site2api-script-"));
+    const file = join(dir, "capture.mjs");
+    await writeFile(file, "export default async (page, { pause }) => { await page.evaluate(() => fetch('/api/products')); await pause(); };");
+    const script = await loadCaptureScript(file);
+    const { result } = await run(script);
+    expect(result.endedBy).toBe("script");
+
+    await writeFile(join(dir, "bad.mjs"), "export const nope = 1;");
+    await expect(loadCaptureScript(join(dir, "bad.mjs"))).rejects.toThrow("must default-export an async function");
   });
 });

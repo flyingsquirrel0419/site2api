@@ -15,9 +15,12 @@ in step 4: naming tools, describing them, and deciding which ones are safe to ex
   passwords. Only the CLI reads it. The same goes for `.site2api/secrets.json`.
 - **Never ask the user to paste a cookie or token into the chat.** They put it in their MCP
   client config themselves (step 6).
-- Only for the user's own accounts, and within the site's terms of service. If the request is
-  about collecting other people's data at scale, or getting around bot protection, stop and say
-  site2api does not do that.
+- Only for the user's own accounts or public pages, and within the site's terms of service. If
+  the request is about collecting other people's data at scale, or getting around bot
+  protection, stop and say site2api does not do that.
+- If you write a capture script: keep it to what the user asked for, call `pause()` between
+  steps, and never try to get past a CAPTCHA, a "verify you are human" page, or a block. If you
+  hit one, stop and tell the user.
 
 ## Shortcut
 
@@ -44,6 +47,28 @@ site2api record <url> -o out
 A browser window opens on a separate site2api profile. Tell the user: log in if needed, use each
 feature they want as a tool two or more times (search, open a list, open an item, …), then
 **close the tab** to finish. Your command returns when they do, and it already runs step 2.
+
+If nobody can use a browser window (a server, CI, or the user asked you to do it), write a
+capture script instead and run it headless:
+
+```js
+// out/capture.mjs: page is a Playwright page already at the start URL
+export default async (page, { url, pause }) => {
+  await page.fill("input[type=search]", "first query");
+  await page.keyboard.press("Enter");
+  await pause();
+  // …use each feature twice or more, with pause() between steps
+};
+```
+
+```bash
+site2api record <url> --script out/capture.mjs -o out
+```
+
+Look at the page first (fetch the HTML, or run a tiny script that prints selectors) instead of
+guessing selectors. The recording stops at 60 page loads + API calls (`--max-requests`). If the
+script fails partway, what it recorded is still analyzed; fix the script and rerun if a feature
+is missing from `report.md`.
 
 To make a HAR without site2api instead: DevTools → Network → check "Preserve log" → use the
 site → right-click the request list → "Save all as HAR with content".

@@ -20,7 +20,7 @@ Record → Normalize → Trace → Infer → Verify → Generate
 
 | Stage | What it does | |
 |---|---|---|
-| Record | A normal browser window on a dedicated profile records the API calls while you use the site. Or bring a HAR from DevTools | `record`, `from-har` |
+| Record | A browser on a dedicated profile records the API calls while the site is used: by you in a visible window, or by a capture script, headless (servers, CI, agents). Or bring a HAR from DevTools | `record`, `from-har` |
 | Normalize | Drops static/analytics noise, templates paths (`/orders/123` → `/orders/{orderId}`), merges JSON schemas, splits GraphQL operations, detects the auth shape | |
 | Trace | Finds where each input comes from: the order id from the order list, the CSRF token from `/api/session`. Deterministic, no LLM | |
 | Infer | Names tools, writes descriptions, marks reads vs. writes. Either **your coding agent** does it with the bundled skill (no API key), or `site2api infer` calls Claude or any OpenAI-compatible API (Grok, OpenRouter, Ollama, …) | `infer-prompt`, `infer` |
@@ -31,10 +31,34 @@ Record → Normalize → Trace → Infer → Verify → Generate
 
 ```bash
 site2api record https://app.example.com -o out   # or: site2api from-har capture.har -o out
+                                                 # or headless: --script capture.mjs
 site2api infer out                               # or let your agent annotate (site2api infer-prompt out)
 SITE2API_COOKIE='…' site2api verify out
 site2api generate out --only-verified
 ```
+
+### Capture scripts (headless)
+
+No screen, or recording on a schedule? Drive the site with a script instead of by hand:
+
+```js
+// capture.mjs
+export default async (page, { url, pause }) => {
+  await page.fill("input[type=search]", "rust");
+  await page.keyboard.press("Enter");
+  await pause();
+  await page.click("text=Next");
+  await pause();
+};
+```
+
+```bash
+site2api record https://app.example.com --script capture.mjs -o out
+```
+
+`page` is a [Playwright page](https://playwright.dev/docs/api/class-page) already at `url`. Scripts
+run headless (`--headed` to watch), stop at 60 page loads + API calls (`--max-requests`), and
+`pause()` waits at least a second between steps. Your coding agent can write the script for you.
 
 ### The generated server
 
@@ -74,8 +98,9 @@ site2api is for **your own accounts and your own data**.
   verify results or generated server. Every output is checked against salted hashes of the
   credentials seen in the capture, and site2api refuses to write a file that contains one.
   The cookies `run` uses for verification stay in memory.
-- **A person drives the browser.** `record` is a normal browser window: no stealth, no
-  bot-detection or CAPTCHA bypass, no proxy rotation, no bulk scraping. These are non-goals.
+- **A plain browser, at a human pace.** Whether you or a script drives it, `record` is an
+  ordinary browser: no stealth, no bot-detection or CAPTCHA bypass, no proxy rotation. Scripts
+  have a request budget and a minimum pause between steps. Bulk scraping is a non-goal.
 - **Write operations are off by default**, and verify never calls them.
 - Respect each site's Terms of Service and robots.txt.
 
