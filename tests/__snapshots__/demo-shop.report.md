@@ -38,8 +38,15 @@
 - CSRF headers: `x-csrf-token`
 - API key headers: none
 - `POST /api/login` sets cookies: `sid`
+- CSRF `x-csrf-token` comes from `GET /api/session` response `/csrfToken`
 
 Values of cookies, tokens and passwords are never written to these files.
+
+## Dependencies
+
+| Input | Comes from | Matched |
+|---|---|---|
+| `GET /api/orders/{orderId}` path `orderId` | `GET /api/orders` → `/orders/*/id` | 2/2 |
 
 ## Warnings
 

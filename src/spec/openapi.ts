@@ -3,6 +3,7 @@
 import { parseJson, type Exchange } from "../capture/har.js";
 import type { AuthHints } from "../normalize/auth.js";
 import { graphqlCall } from "../normalize/graphql.js";
+import { concretePointer, type Dependencies } from "../normalize/links.js";
 import { inferScalarSchema, inferSchema, type Schema } from "../normalize/schema.js";
 import { singular } from "../normalize/template.js";
 import { redactValue } from "../redact.js";
@@ -36,22 +37,28 @@ const STATUS_TEXT: Record<number, string> = {
 const VERSION_SEGMENT = /^v\d+(?:\.\d+)?$/i;
 const NOISE_SEGMENTS = new Set(["api", "rest", "rpc", "internal", "public"]);
 
-export function buildSpec(ops: Operation[], hints: AuthHints, options: SpecOptions): Json {
+export function buildSpec(
+  ops: Operation[],
+  hints: AuthHints,
+  options: SpecOptions,
+  deps: Dependencies = { links: [], auth: {} },
+): Json {
   const primaryOrigin = mostCommonOrigin(ops);
-  const usedIds = new Set<string>();
+  const ids = assignOperationIds(ops);
   const paths: Record<string, Record<string, unknown>> = {};
   const graphqlOps: Json[] = [];
 
   for (const op of ops) {
     if (op.graphql) {
-      graphqlOps.push(graphqlEntry(op, options, usedIds));
+      graphqlOps.push(graphqlEntry(op, ids.get(op)!, options));
       ensureGraphqlPath(paths, op, primaryOrigin);
       continue;
     }
     const item = (paths[op.template] ??= {});
     if (op.origin !== primaryOrigin) item.servers = [{ url: op.origin }];
-    item[op.method.toLowerCase()] = restOperation(op, options, usedIds);
+    item[op.method.toLowerCase()] = restOperation(op, ids.get(op)!, options);
   }
+  addOpenApiLinks(paths, deps, ids);
 
   const spec: Json = {
     openapi: "3.1.0",
@@ -67,11 +74,78 @@ export function buildSpec(ops: Operation[], hints: AuthHints, options: SpecOptio
   const schemes = securitySchemes(hints);
   if (Object.keys(schemes).length > 0) spec.components = { securitySchemes: schemes };
   if (graphqlOps.length > 0) spec["x-site2api-graphql"] = graphqlOps;
+  if (deps.links.length > 0) {
+    spec["x-site2api-links"] = deps.links.map((l) => ({
+      from: ids.get(l.from),
+      status: l.status,
+      pointer: l.pointer,
+      to: ids.get(l.to),
+      target: l.target,
+      matches: l.matches,
+      samples: l.samples,
+    }));
+  }
+  const auth = authExtension(deps, ids);
+  if (auth) spec["x-site2api-auth"] = auth;
   return spec;
 }
 
-function restOperation(op: Operation, options: SpecOptions, usedIds: Set<string>): Json {
-  const operationId = uniqueId(restOperationId(op), usedIds);
+function assignOperationIds(ops: Operation[]): Map<Operation, string> {
+  const used = new Set<string>();
+  return new Map(
+    ops.map((op) => [
+      op,
+      uniqueId(op.graphql ? `graphql_${snake(op.graphql.operationName)}` : restOperationId(op), used),
+    ]),
+  );
+}
+
+// Standard OpenAPI links for the cases OpenAPI can express: REST producer → REST path/query parameter.
+// Everything (including body fields and GraphQL variables) is also in x-site2api-links.
+function addOpenApiLinks(paths: Record<string, Record<string, unknown>>, deps: Dependencies, ids: Map<Operation, string>) {
+  for (const link of deps.links) {
+    if (link.from.graphql || link.to.graphql || (link.target.in !== "path" && link.target.in !== "query")) continue;
+    const operation = paths[link.from.template]?.[link.from.method.toLowerCase()] as Json | undefined;
+    const response = (operation?.responses as Record<string, Json> | undefined)?.[String(link.status)];
+    if (!response) continue;
+    const links = ((response.links as Json | undefined) ??= {});
+    const toId = ids.get(link.to)!;
+    const name = uniqueKey(links, toId.replace(/(^|_)([a-z])/g, (_, __, c: string) => c.toUpperCase()));
+    links[name] = {
+      operationId: toId,
+      parameters: { [link.target.name]: `$response.body#${concretePointer(link.pointer)}` },
+      "x-site2api": { pointer: link.pointer, matches: link.matches, samples: link.samples },
+    };
+  }
+}
+
+function uniqueKey(obj: Json, base: string): string {
+  let key = base;
+  for (let n = 2; key in obj; n++) key = `${base}${n}`;
+  return key;
+}
+
+function authExtension(deps: Dependencies, ids: Map<Operation, string>): Json | undefined {
+  const { session, csrf, bearer } = deps.auth;
+  const out: Json = {};
+  if (session) out.session = { cookies: session.cookies, setBy: session.setBy.map((op) => ids.get(op)) };
+  if (csrf) {
+    out.csrf = {
+      header: csrf.header,
+      ...(csrf.source && {
+        source: { operationId: ids.get(csrf.source.op), status: csrf.source.status, pointer: csrf.source.pointer },
+      }),
+    };
+  }
+  if (bearer) {
+    out.bearer = bearer.source
+      ? { source: { operationId: ids.get(bearer.source.op), status: bearer.source.status, pointer: bearer.source.pointer } }
+      : {};
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function restOperation(op: Operation, operationId: string, options: SpecOptions): Json {
   const out: Json = { operationId, summary: humanize(operationId) };
 
   const parameters: Json[] = op.params.map((p) => ({
@@ -94,11 +168,11 @@ function restOperation(op: Operation, options: SpecOptions, usedIds: Set<string>
   return out;
 }
 
-function graphqlEntry(op: Operation, options: SpecOptions, usedIds: Set<string>): Json {
+function graphqlEntry(op: Operation, operationId: string, options: SpecOptions): Json {
   const gql = op.graphql!;
   const variables = op.exchanges.map((ex) => graphqlCall(ex)?.variables).filter((v) => v !== undefined);
   const entry: Json = {
-    operationId: uniqueId(`graphql_${snake(gql.operationName)}`, usedIds),
+    operationId,
     operationName: gql.operationName,
     operationType: gql.operationType,
     endpoint: { method: op.method, url: op.origin + op.template },

@@ -132,6 +132,15 @@ paths:
                         - status
                 required:
                   - orders
+          links:
+            GetOrder:
+              operationId: get_order
+              parameters:
+                orderId: $response.body#/orders/0/id
+              x-site2api:
+                pointer: /orders/*/id
+                matches: 2
+                samples: 2
       security:
         - cookie_sid: []
       x-site2api:
@@ -446,3 +455,25 @@ x-site2api-graphql:
       - cookie_sid: []
     x-site2api:
       samples: 1
+x-site2api-links:
+  - from: list_orders
+    status: 200
+    pointer: /orders/*/id
+    to: get_order
+    target:
+      in: path
+      name: orderId
+    matches: 2
+    samples: 2
+x-site2api-auth:
+  session:
+    cookies:
+      - sid
+    setBy:
+      - post_login
+  csrf:
+    header: x-csrf-token
+    source:
+      operationId: get_session
+      status: 200
+      pointer: /csrfToken

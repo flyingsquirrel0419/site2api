@@ -1,5 +1,6 @@
 import type { AuthHints } from "./normalize/auth.js";
 import type { FilterResult } from "./normalize/filter.js";
+import type { Dependencies } from "./normalize/links.js";
 import type { Operation } from "./spec/operations.js";
 
 export interface ReportInput {
@@ -8,9 +9,10 @@ export interface ReportInput {
   filter: FilterResult;
   hints: AuthHints;
   operations: Operation[];
+  dependencies: Dependencies;
 }
 
-export function renderReport({ source, total, filter, hints, operations }: ReportInput): string {
+export function renderReport({ source, total, filter, hints, operations, dependencies }: ReportInput): string {
   const rest = operations.filter((op) => !op.graphql);
   const graphql = operations.filter((op) => op.graphql);
   const lines: string[] = [];
@@ -53,7 +55,22 @@ export function renderReport({ source, total, filter, hints, operations }: Repor
   for (const op of setters) {
     lines.push(`- \`${op.method} ${op.template}\` sets cookies: ${list(op.auth.setsCookies)}`);
   }
+  const { csrf, bearer } = dependencies.auth;
+  if (csrf?.source) {
+    lines.push(`- CSRF \`${csrf.header}\` comes from \`${label(csrf.source.op)}\` response \`${csrf.source.pointer}\``);
+  }
+  if (bearer?.source) lines.push(`- Bearer token comes from \`${label(bearer.source.op)}\` response \`${bearer.source.pointer}\``);
   lines.push("", "Values of cookies, tokens and passwords are never written to these files.", "");
+
+  if (dependencies.links.length > 0) {
+    lines.push("## Dependencies", "", "| Input | Comes from | Matched |", "|---|---|---|");
+    for (const l of dependencies.links) {
+      lines.push(
+        `| \`${label(l.to)}\` ${l.target.in} \`${l.target.name}\` | \`${label(l.from)}\` → \`${l.pointer}\` | ${l.matches}/${l.samples} |`,
+      );
+    }
+    lines.push("");
+  }
 
   const warnings: string[] = [];
   const single = operations.filter((op) => op.exchanges.length === 1);
@@ -74,6 +91,10 @@ export function renderReport({ source, total, filter, hints, operations }: Repor
   }
 
   return lines.join("\n");
+}
+
+function label(op: Operation): string {
+  return op.graphql ? `graphql ${op.graphql.operationName}` : `${op.method} ${op.template}`;
 }
 
 function authLabel(op: Operation): string {
