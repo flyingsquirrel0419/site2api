@@ -10,5 +10,6 @@
 | [The generated server](generated-server.md) | You are registering the server, setting credentials, or allowing writes |
 | [How it works](how-it-works.md) | You want to know what each stage does and why |
 | [Security model](security.md) | You want to know where credentials go and what site2api will not do |
+| [Versioning](versioning.md) | You want to know what a version bump means for you, or you are cutting a release |
 
 For contributors: [testing the skill in another agent](testing-skill.md).

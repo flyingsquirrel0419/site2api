@@ -2,8 +2,8 @@
 
 All notable changes to site2api are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/) once 1.0 is out; until then a minor version may break
-things.
+[Semantic Versioning](https://semver.org/). Before 1.0, a minor version may break things and
+says how under **Changed**. [Versioning](docs/versioning.md) has the details.
 
 ## [Unreleased]
 

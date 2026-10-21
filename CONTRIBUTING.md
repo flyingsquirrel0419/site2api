@@ -114,6 +114,7 @@ commit.
 ## Releasing (maintainers)
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which publishes to npm with provenance.
+[Versioning](docs/versioning.md) says which number to bump, and lists the steps:
 
 1. Set `version` in `package.json`, and rename `## [Unreleased]` in `CHANGELOG.md` to
    `## [x.y.z] - YYYY-MM-DD` with a new empty `Unreleased` above it.
