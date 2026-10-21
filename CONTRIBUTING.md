@@ -111,5 +111,21 @@ commit.
 3. Fill in the pull request template: what changed, why, and how you tested it.
 4. CI must pass. A maintainer reviews; expect questions and small requests.
 
+## Releasing (maintainers)
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which publishes to npm with provenance.
+
+1. Set `version` in `package.json`, and rename `## [Unreleased]` in `CHANGELOG.md` to
+   `## [x.y.z] - YYYY-MM-DD` with a new empty `Unreleased` above it.
+2. `pnpm release:check vx.y.z` checks locally what CI will check.
+3. Commit on `main`, then `git tag vx.y.z && git push origin main vx.y.z`.
+
+The workflow stops, before publishing anything, if the `NPM_TOKEN` repository secret is missing
+or rejected, the tag is not on `main` or does not match `package.json`, the version is (or once
+was) on npm, a stable version is older than `latest`, the tests fail, or the package would miss a
+file. A version with a pre-release suffix (`v0.2.0-beta.1`) goes to the `next` dist-tag. The first
+release also registers the `site2api` name on npm, so its token needs permission to create
+packages.
+
 By contributing, you agree that your contribution is licensed under the project's
 [MIT license](LICENSE).

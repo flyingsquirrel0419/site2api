@@ -1,0 +1,134 @@
+name: Release
+
+# Pushing a tag like v0.1.0 publishes that version to npm. The tag must match package.json, the
+# version must not be on npm yet, and the NPM_TOKEN repository secret must be set; otherwise the
+# run stops before anything is published. The first publish also registers the package name.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: check tag and npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      dist_tag: ${{ steps.check.outputs.dist_tag }}
+      first_publish: ${{ steps.check.outputs.first_publish }}
+    steps:
+      # Fail first, before spending time on tests.
+      - name: Require the NPM_TOKEN secret
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::The NPM_TOKEN repository secret is not set. Add an npm automation or granular access token under Settings → Secrets and variables → Actions, then re-run this job. Nothing was published."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require the tagged commit to be on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME points at a commit that is not on main. Tag a commit on main. Nothing was published."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check the tag, package.json and the npm registry
+        id: check
+        run: node scripts/check-release.mjs "$GITHUB_REF_NAME"
+
+  test:
+    needs: check
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: publish to npm
+    needs: [check, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      DIST_TAG: ${{ needs.check.outputs.dist_tag }}
+      FIRST_PUBLISH: ${{ needs.check.outputs.first_publish }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Check the token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::The NPM_TOKEN secret is not set. Nothing was published."
+            exit 1
+          fi
+          if ! user=$(npm whoami 2>/dev/null); then
+            echo "::error::npm rejected NPM_TOKEN (expired, revoked or mistyped). Create a new token and update the secret. Nothing was published."
+            exit 1
+          fi
+          echo "Publishing as $user."
+          if [ "$FIRST_PUBLISH" = "true" ]; then
+            echo "::notice::First publish: this registers the package name on npm. A granular token needs read and write access to all packages (it cannot be scoped to a package that does not exist yet)."
+          fi
+
+      - name: Check the package contents
+        run: |
+          npm pack --dry-run --json > pack.json
+          for f in dist/cli.js dist/runtime/server.mjs skills/site2api/SKILL.md package.json README.md LICENSE; do
+            if ! node -e 'const [p] = require("./pack.json"); process.exit(p.files.some((f) => f.path === process.argv[1]) ? 0 : 1)' "$f"; then
+              echo "::error::The package would not contain $f. Nothing was published."
+              exit 1
+            fi
+          done
+          rm pack.json
+          test "$(node dist/cli.js --version)" = "$VERSION" || { echo "::error::dist/cli.js reports a different version than $VERSION. Nothing was published."; exit 1; }
+
+      # Another run could have published the version while the tests ran.
+      - name: Re-check the registry
+        run: node scripts/check-release.mjs "$GITHUB_REF_NAME"
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance --tag "$DIST_TAG"
+
+      - name: Confirm it is on npm
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if npm view "site2api@$VERSION" version >/dev/null 2>&1; then
+              echo "::notice::Published site2api@$VERSION (dist-tag $DIST_TAG)."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::npm accepted the publish, but site2api@$VERSION is not visible yet. Check https://www.npmjs.com/package/site2api in a few minutes."

@@ -16,6 +16,9 @@ import { fileURLToPath } from "node:url";
 import type { ToolDef, ToolsFile } from "../generate/types.js";
 import { HttpClient, safeJson, type Args, type HttpResponse } from "./http.js";
 
+// Set by tsup from package.json.
+declare const __SITE2API_VERSION__: string;
+
 type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 
 const env = process.env;
@@ -38,7 +41,7 @@ const client = new HttpClient({
 });
 
 const server = new Server(
-  { name: `site2api-${slug(file.site.name)}`, version: "0.0.1" },
+  { name: `site2api-${slug(file.site.name)}`, version: __SITE2API_VERSION__ },
   { capabilities: { tools: {} } },
 );
 

@@ -4,6 +4,14 @@
   "description": "Turn any website you use into a verified MCP server — in one command.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flyingsquirrel0419/site2api.git"
+  },
+  "homepage": "https://github.com/flyingsquirrel0419/site2api#readme",
+  "bugs": {
+    "url": "https://github.com/flyingsquirrel0419/site2api/issues"
+  },
   "bin": {
     "site2api": "dist/cli.js"
   },
@@ -20,7 +28,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "demo": "tsx demo/shop/server.ts",
-    "record-fixture": "tsx scripts/record-fixture.ts"
+    "record-fixture": "tsx scripts/record-fixture.ts",
+    "release:check": "node scripts/check-release.mjs"
   },
   "keywords": [
     "mcp",

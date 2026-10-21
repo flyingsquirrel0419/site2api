@@ -27,10 +27,13 @@ import {
   VERIFY_FILE,
 } from "./workspace.js";
 
+// Set by tsup from package.json.
+declare const __SITE2API_VERSION__: string;
+
 const program = new Command()
   .name("site2api")
   .description("Turn any website you use into a verified MCP server.")
-  .version("0.0.1");
+  .version(__SITE2API_VERSION__);
 
 program
   .command("from-har")
