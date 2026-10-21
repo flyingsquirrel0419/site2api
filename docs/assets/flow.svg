@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="1000" height="300" role="img" aria-labelledby="title desc">
+  <title id="title">How site2api works</title>
+  <desc id="desc">Recorded browser traffic goes through six stages: record, normalize, trace, infer, verify and generate, ending in an MCP server. Credential values are checked out of every output.</desc>
+  <style>
+    :root { --bg: #ffffff; --card: #f6f7fb; --stroke: #d5d9e6; --text: #1c2030; --muted: #5f667a; --accent: #6d4aff; --accent-soft: #ece7ff; --ok: #12805c; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --card: #161b22; --stroke: #30363d; --text: #e6edf3; --muted: #9aa4b2; --accent: #a28bff; --accent-soft: #241d3d; --ok: #3fb950; }
+    }
+    .bg { fill: var(--bg); }
+    .card { fill: var(--card); stroke: var(--stroke); stroke-width: 1.5; }
+    .final { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+    .step { font: 600 12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--accent); letter-spacing: .08em; }
+    .name { font: 700 19px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text); }
+    .note { font: 400 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); }
+    .arrow { stroke: var(--muted); stroke-width: 2; fill: none; marker-end: url(#head); }
+    .gate { fill: none; stroke: var(--ok); stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .gate-text { font: 600 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ok); }
+  </style>
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" style="fill: var(--muted)"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1000" height="300" rx="16"/>
+
+  <!-- six stages, 140 wide, 22 gap, starting at x=24 -->
+  <g>
+    <rect class="card" x="24" y="40" width="140" height="150" rx="12"/>
+    <text class="step" x="40" y="68">1 · RECORD</text>
+    <text class="name" x="40" y="96">Browser</text>
+    <text class="note" x="40" y="122">you, or a script,</text>
+    <text class="note" x="40" y="140">use the site</text>
+    <text class="note" x="40" y="166">→ HAR</text>
+  </g>
+  <path class="arrow" d="M166 115 H184"/>
+
+  <g>
+    <rect class="card" x="186" y="40" width="140" height="150" rx="12"/>
+    <text class="step" x="202" y="68">2 · NORMALIZE</text>
+    <text class="name" x="202" y="96">Endpoints</text>
+    <text class="note" x="202" y="122">drop noise, find</text>
+    <text class="note" x="202" y="140">/orders/{id},</text>
+    <text class="note" x="202" y="158">schemas, auth</text>
+  </g>
+  <path class="arrow" d="M328 115 H346"/>
+
+  <g>
+    <rect class="card" x="348" y="40" width="140" height="150" rx="12"/>
+    <text class="step" x="364" y="68">3 · TRACE</text>
+    <text class="name" x="364" y="96">Data flow</text>
+    <text class="note" x="364" y="122">id ← order list</text>
+    <text class="note" x="364" y="140">CSRF ← /session</text>
+    <text class="note" x="364" y="158">(no LLM)</text>
+  </g>
+  <path class="arrow" d="M490 115 H508"/>
+
+  <g>
+    <rect class="card" x="510" y="40" width="140" height="150" rx="12"/>
+    <text class="step" x="526" y="68">4 · INFER</text>
+    <text class="name" x="526" y="96">Tool names</text>
+    <text class="note" x="526" y="122">your agent (skill)</text>
+    <text class="note" x="526" y="140">or an LLM API;</text>
+    <text class="note" x="526" y="158">read / write / auth</text>
+  </g>
+  <path class="arrow" d="M652 115 H670"/>
+
+  <g>
+    <rect class="card" x="672" y="40" width="140" height="150" rx="12"/>
+    <text class="step" x="688" y="68">5 · VERIFY</text>
+    <text class="name" x="688" y="96">Live check</text>
+    <text class="note" x="688" y="122">call each read</text>
+    <text class="note" x="688" y="140">tool, compare to</text>
+    <text class="note" x="688" y="158">the schema</text>
+  </g>
+  <path class="arrow" d="M814 115 H832"/>
+
+  <g>
+    <rect class="final" x="834" y="40" width="142" height="150" rx="12"/>
+    <text class="step" x="850" y="68">6 · GENERATE</text>
+    <text class="name" x="850" y="96">MCP server</text>
+    <text class="note" x="850" y="122">server.mjs +</text>
+    <text class="note" x="850" y="140">tools.json,</text>
+    <text class="note" x="850" y="158">no install</text>
+  </g>
+
+  <rect class="gate" x="24" y="214" width="952" height="54" rx="10"/>
+  <text class="gate-text" x="500" y="246" text-anchor="middle">Every output is checked against salted hashes of the captured credentials: cookie, token and key values are never written.</text>
+</svg>
