@@ -2,7 +2,7 @@
 // It names and describes operations and decides which ones become tools. Every field is optional:
 // without annotations, generate falls back to the heuristic operation ids.
 import { z } from "zod";
-import type { Catalog } from "../spec/catalog.js";
+import { canBeRead, defaultKind, type Catalog } from "../spec/catalog.js";
 
 const TOOL_NAME = /^[a-z][a-z0-9_]{0,63}$/;
 
@@ -58,6 +58,12 @@ export function validateAnnotations(raw: unknown, catalog: Catalog): ValidationR
     const other = tools.get(tool);
     if (other) errors.push(`operations.${id}.tool: "${tool}" is already used by operations.${other}`);
     else tools.set(tool, id);
+
+    if (ann.kind && ann.kind !== "auth" && defaultKind(op) === "auth") {
+      errors.push(`operations.${id}.kind: this is a login/session operation; it is never exposed as a tool`);
+    } else if (ann.kind === "read" && !canBeRead(op)) {
+      errors.push(`operations.${id}.kind: ${op.method} ${op.path} can change data, so it cannot be "read" (it would skip confirm and be called by verify)`);
+    }
 
     const inputNames = new Set(op.inputs.map((i) => i.name));
     for (const param of Object.keys(ann.params ?? {})) {

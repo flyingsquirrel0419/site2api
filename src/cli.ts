@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cookiesFromProfile, DEFAULT_PROFILE_DIR, loadCaptureScript, record } from "./capture/record.js";
+import { cookieHeaderFor, cookiesFromProfile, DEFAULT_PROFILE_DIR, loadCaptureScript, record, type StoredCookie } from "./capture/record.js";
 import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
@@ -54,6 +54,12 @@ interface AnalyzeCliOptions {
   examples: boolean;
 }
 
+/** out/.site2api holds the recording and the secret fingerprints: readable by this user only. */
+async function privateDir(dir: string): Promise<void> {
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  await chmod(dir, 0o700);
+}
+
 /** from-har's work, shared with record and run. */
 async function analyzeToDir(file: string, opts: AnalyzeCliOptions) {
   const result = analyzeHar(await readFile(file, "utf8"), {
@@ -62,10 +68,10 @@ async function analyzeToDir(file: string, opts: AnalyzeCliOptions) {
     includeOrigins: opts.includeOrigin,
     examples: opts.examples,
   });
-  await mkdir(join(opts.out, dirname(SECRETS_FILE)), { recursive: true });
+  await privateDir(join(opts.out, dirname(SECRETS_FILE)));
   await writeFile(join(opts.out, "openapi.yaml"), result.yaml);
   await writeFile(join(opts.out, "report.md"), result.report);
-  await writeFile(join(opts.out, SECRETS_FILE), JSON.stringify(result.secrets) + "\n");
+  await writeFile(join(opts.out, SECRETS_FILE), JSON.stringify(result.secrets) + "\n", { mode: 0o600 });
   await writeFile(join(opts.out, SOURCE_FILE), JSON.stringify({ har: resolve(file) }) + "\n");
 
   const rest = result.operations.filter((op) => !op.graphql).length;
@@ -101,12 +107,13 @@ interface RecordCliOptions {
   maxRequests?: string;
 }
 
-/** Returns the site's cookies at the end of the recording, in memory only. */
-async function recordToDir(url: string, opts: RecordCliOptions): Promise<string | undefined> {
+/** Returns the profile's cookies at the end of the recording, in memory only. */
+async function recordToDir(url: string, opts: RecordCliOptions): Promise<StoredCookie[]> {
   const harPath = join(opts.out, CAPTURE_FILE);
-  await mkdir(dirname(harPath), { recursive: true });
-  const script = opts.script ? await loadCaptureScript(opts.script) : undefined;
   const maxRequests = Number(opts.maxRequests ?? 60);
+  if (!Number.isInteger(maxRequests) || maxRequests < 1) throw new Error(`--max-requests must be a whole number of at least 1, not "${opts.maxRequests}"`);
+  await privateDir(dirname(harPath));
+  const script = opts.script ? await loadCaptureScript(opts.script) : undefined;
   if (script) {
     console.log(`Running ${opts.script} against ${url} (at most ${maxRequests} requests).`);
   } else {
@@ -115,7 +122,7 @@ async function recordToDir(url: string, opts: RecordCliOptions): Promise<string 
     console.log("When you are done, press Enter here (or close the tab).");
   }
 
-  const { cookieHeader, endedBy, requests, scriptError } = await record({
+  const { cookies, endedBy, requests, scriptError } = await record({
     url,
     harPath,
     profileDir: opts.profileDir,
@@ -138,15 +145,18 @@ async function recordToDir(url: string, opts: RecordCliOptions): Promise<string 
   console.log(`${how} (${requests} page loads + API calls)`);
   if (scriptError) console.warn(`warning: the capture script failed: ${scriptError}. Analyzing what was recorded so far.`);
 
-  await analyzeToDir(harPath, { out: opts.out, includeOrigin: opts.includeOrigin, examples: false });
-  if (opts.discardHar) {
-    await rm(harPath);
-    await rm(join(opts.out, SOURCE_FILE), { force: true });
-    console.log("Deleted the recording (--discard-har).");
-  } else {
-    console.log(`recording kept at ${harPath} (it holds your session: don't share or commit it)`);
+  try {
+    await analyzeToDir(harPath, { out: opts.out, includeOrigin: opts.includeOrigin, examples: false });
+  } finally {
+    // Also when analysis fails: --discard-har means the session must not stay on disk.
+    if (opts.discardHar) {
+      await rm(harPath, { force: true });
+      await rm(join(opts.out, SOURCE_FILE), { force: true });
+      console.log("Deleted the recording (--discard-har).");
+    }
   }
-  return cookieHeader;
+  if (!opts.discardHar) console.log(`recording kept at ${harPath} (it holds your session: don't share or commit it)`);
+  return cookies;
 }
 
 function pressEnter(): Promise<void> {
@@ -296,7 +306,8 @@ async function verifyDir(dir: string, opts: VerifyCliOptions): Promise<VerifyRep
   }
   let cookie = opts.cookie ?? process.env.SITE2API_COOKIE;
   if (!cookie && opts.profile) {
-    cookie = await cookiesFromProfile(catalog.baseUrl, opts.profileDir);
+    // Cookies for the host the requests go to, as a browser would send them.
+    cookie = await cookiesFromProfile(opts.baseUrl ?? catalog.baseUrl, opts.profileDir);
     const needsCookie = catalog.operations.some((op) => op.auth.cookies.length > 0);
     if (!cookie && needsCookie) console.warn("warning: the profile has no persistent cookies for this site (session cookies end with the browser)");
   }
@@ -367,7 +378,9 @@ program
   .action(async (url: string, opts: RecordCliOptions & { provider?: string; model?: string; allowWrites: boolean; name?: string }) => {
     const dir = opts.out;
     console.log("── 1/4 record");
-    const cookie = await recordToDir(url, opts);
+    const cookies = await recordToDir(url, opts);
+    // For the API's host, which may differ from the start URL (app.example.com → api.example.com).
+    const cookie = cookieHeaderFor(cookies, (await loadCatalog(dir)).baseUrl);
 
     console.log("\n── 2/4 annotate");
     try {

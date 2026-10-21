@@ -25,6 +25,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HEX = /^[0-9a-f]{16,}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TOKEN = /^[A-Za-z0-9_-]{20,}$/;
+const SHORT_TOKEN = /^[A-Za-z0-9_-]{8,}$/;
 const SIBLING_THRESHOLD = 3;
 
 export function segmentKind(segment: string): SegmentKind | undefined {
@@ -34,6 +35,9 @@ export function segmentKind(segment: string): SegmentKind | undefined {
   if (HEX.test(segment)) return "hex";
   // Opaque tokens mix letters and digits; long plain words (e.g. "notification-settings") are not tokens.
   if (TOKEN.test(segment) && /\d/.test(segment) && /[A-Za-z]/.test(segment)) return "token";
+  // Shorter share links and magic-link codes (/share/MagicTok9x7Q): mixed case plus digits is
+  // never a word, and leaving it literal would put the token itself into the spec.
+  if (SHORT_TOKEN.test(segment) && /\d/.test(segment) && /[a-z]/.test(segment) && /[A-Z]/.test(segment)) return "token";
   return undefined;
 }
 

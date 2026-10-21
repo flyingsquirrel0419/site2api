@@ -40,7 +40,8 @@ function infer(value: unknown): Inner {
     case "string":
       return { types: ["string"], format: stringFormat(value) };
     case "object": {
-      const properties: Record<string, Inner> = {};
+      // No prototype: a response key named "__proto__" must stay an ordinary property.
+      const properties: Record<string, Inner> = Object.create(null);
       for (const [k, v] of Object.entries(value as object)) properties[k] = infer(v);
       return { types: ["object"], properties, required: Object.keys(properties).sort() };
     }
@@ -73,7 +74,7 @@ function merge(a: Inner, b: Inner): Inner {
   }
 
   if (a.properties || b.properties) {
-    const properties: Record<string, Inner> = {};
+    const properties: Record<string, Inner> = Object.create(null);
     for (const key of new Set([...Object.keys(a.properties ?? {}), ...Object.keys(b.properties ?? {})])) {
       const pa = a.properties?.[key];
       const pb = b.properties?.[key];

@@ -83,15 +83,36 @@ describe("record", () => {
 });
 
 describe("cookieHeaderFor", () => {
-  it("keeps cookies of the site and its subdomains only", () => {
+  it("keeps the cookies a browser would send to that host", () => {
     const cookies = [
       { name: "sid", value: "a", domain: ".shop.com" },
-      { name: "api", value: "b", domain: "api.shop.com" },
+      { name: "api", value: "b", domain: "api.shop.com" }, // host-only: not for www
+      { name: "www", value: "e", domain: "www.shop.com" },
       { name: "_ga", value: "c", domain: ".google.com" },
       { name: "x", value: "d", domain: "notshop.com" },
     ];
-    expect(cookieHeaderFor(cookies, "https://www.shop.com/app")).toBe("sid=a; api=b");
+    expect(cookieHeaderFor(cookies, "https://www.shop.com/app")).toBe("sid=a; www=e");
+    expect(cookieHeaderFor(cookies, "https://api.shop.com")).toBe("sid=a; api=b");
     expect(cookieHeaderFor([], "https://www.shop.com")).toBeUndefined();
+  });
+
+  it("never mixes sites on shared hosting", () => {
+    const cookies = [
+      { name: "bob", value: "1", domain: "bob.github.io" },
+      { name: "bobwide", value: "2", domain: ".bob.github.io" },
+      { name: "alice", value: "3", domain: "alice.github.io" },
+    ];
+    expect(cookieHeaderFor(cookies, "https://alice.github.io/")).toBe("alice=3");
+  });
+
+  it("drops expired cookies, and secure cookies over plain http", () => {
+    const cookies = [
+      { name: "old", value: "1", domain: "shop.com", expires: 1 },
+      { name: "sec", value: "2", domain: "shop.com", secure: true },
+      { name: "ok", value: "3", domain: "shop.com", expires: -1 },
+    ];
+    expect(cookieHeaderFor(cookies, "http://shop.com/")).toBe("ok=3");
+    expect(cookieHeaderFor(cookies, "https://shop.com/")).toBe("sec=2; ok=3");
   });
 });
 

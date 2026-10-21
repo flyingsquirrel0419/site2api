@@ -194,3 +194,22 @@ export function defaultKind(op: CatalogOperation): "read" | "write" | "auth" {
   const last = op.path.split("/").filter(Boolean).at(-1) ?? "";
   return op.method === "POST" && !op.graphql && LOOKUP_SEGMENT.test(last) ? "read" : "write";
 }
+
+/**
+ * The kind an operation gets, given what annotations asked for. Annotations are written by an
+ * agent that read site-derived text, so they may make an operation safer but never riskier:
+ * "read" drops the confirm step and lets verify call it live, so it is only accepted where the
+ * heuristic agrees or the method cannot change data; login operations always stay "auth".
+ */
+export function effectiveKind(op: CatalogOperation, requested?: "read" | "write" | "auth"): "read" | "write" | "auth" {
+  const heuristic = defaultKind(op);
+  if (!requested || heuristic === "auth") return heuristic;
+  if (requested === "read" && !canBeRead(op)) return heuristic;
+  return requested;
+}
+
+export function canBeRead(op: CatalogOperation): boolean {
+  if (defaultKind(op) === "read") return true;
+  if (op.providesAuth || op.graphql) return false; // GraphQL mutations were already "write"
+  return op.method === "GET" || op.method === "HEAD";
+}

@@ -24,12 +24,12 @@ type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 const env = process.env;
 const toolsPath = env.SITE2API_TOOLS ?? fileURLToPath(new URL("./tools.json", import.meta.url));
 const file: ToolsFile = JSON.parse(readFileSync(toolsPath, "utf8"));
-const maxBytes = Number(env.SITE2API_MAX_BYTES ?? 20000);
+const maxBytes = numberEnv("SITE2API_MAX_BYTES", 20000, 1);
 
 const client = new HttpClient({
   recordedBaseUrl: file.baseUrl,
   baseUrl: env.SITE2API_BASE_URL,
-  rate: Number(env.SITE2API_RATE ?? 1),
+  rate: numberEnv("SITE2API_RATE", 1, 0),
   credentials: {
     cookie: env.SITE2API_COOKIE,
     bearer: env.SITE2API_BEARER,
@@ -72,7 +72,7 @@ async function callTool(tool: ToolDef, args: Args): Promise<Result> {
     );
   }
   const required = (tool.inputSchema.required as string[] | undefined) ?? [];
-  const missing = required.filter((name) => name !== "confirm" && args[name] === undefined);
+  const missing = required.filter((name) => name !== "confirm" && (!Object.hasOwn(args, name) || args[name] === undefined));
   if (missing.length > 0) return error(`Missing required input(s): ${missing.join(", ")}.`);
 
   if (tool.auth.cookie && !env.SITE2API_COOKIE) {
@@ -87,6 +87,7 @@ async function callTool(tool: ToolDef, args: Args): Promise<Result> {
 
 function render(res: HttpResponse): Result {
   let text = res.text;
+  if (res.truncated) text += "\n… (the response was too large and was cut off; narrow the request)";
   const parsed = safeJson(text);
   if (parsed !== undefined) text = JSON.stringify(parsed, null, 2);
   if (text.length > maxBytes) text = `${text.slice(0, maxBytes)}\n… (truncated ${text.length - maxBytes} characters; narrow the request)`;
@@ -101,6 +102,16 @@ function render(res: HttpResponse): Result {
 
 function error(text: string): Result {
   return { content: [{ type: "text", text }], isError: true };
+}
+
+/** A typo must not silently turn the rate limit or truncation off. */
+function numberEnv(name: string, fallback: number, min: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const value = Number(raw);
+  if (Number.isFinite(value) && value >= min) return value;
+  console.error(`site2api: ignoring ${name}=${raw} (expected a number >= ${min}); using ${fallback}`);
+  return fallback;
 }
 
 function slug(text: string): string {

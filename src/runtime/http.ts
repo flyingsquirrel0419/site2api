@@ -1,6 +1,7 @@
 // Turns a tool's HttpCall plus arguments into a real request. Shared by the generated MCP server
 // and by `site2api verify`, so what verify checks is exactly what the server sends.
 import type { HttpCall, ToolAuth, ToolsFile } from "../generate/types.js";
+import { siteOf } from "../normalize/filter.js";
 
 export type Args = Record<string, unknown>;
 
@@ -15,7 +16,12 @@ export interface HttpResponse {
   status: number;
   contentType: string;
   text: string;
+  /** The body was longer than maxResponseBytes and was cut there. */
+  truncated?: boolean;
 }
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 
 export interface HttpClientOptions {
   /** Origin the URLs were recorded against. */
@@ -26,6 +32,10 @@ export interface HttpClientOptions {
   rate: number;
   credentials: Credentials;
   csrf?: ToolsFile["csrf"];
+  /** Per request, default 30 s. */
+  timeoutMs?: number;
+  /** Bodies are read up to this many bytes, default 10 MB. */
+  maxResponseBytes?: number;
 }
 
 export class HttpClient {
@@ -70,23 +80,29 @@ export class HttpClient {
   async send(http: HttpCall, args: Args, auth: ToolAuth, extraHeaders: Record<string, string>): Promise<HttpResponse> {
     const { recordedBaseUrl, baseUrl, credentials } = this.options;
     let url = http.url;
-    if (baseUrl && url.startsWith(recordedBaseUrl)) url = baseUrl.replace(/\/$/, "") + url.slice(recordedBaseUrl.length);
+    const recorded = recordedBaseUrl.replace(/\/$/, "");
+    if (baseUrl && (url === recorded || url.startsWith(`${recorded}/`))) url = baseUrl.replace(/\/$/, "") + url.slice(recorded.length);
 
     const query = new URLSearchParams();
     const body: Args = {};
     let wholeBody: unknown;
     for (const input of http.inputs) {
-      const value = args[input.name] ?? input.default;
+      // Own properties only: an input named `constructor` must not read Object.prototype.
+      const value = (Object.hasOwn(args, input.name) ? args[input.name] : undefined) ?? input.default;
       if (value === undefined) continue;
-      if (input.in === "path") url = url.replace(`{${input.source}}`, encodeURIComponent(String(value)));
+      if (input.in === "path") url = url.replace(`{${input.source}}`, pathSegment(input.name, value));
       else if (input.in === "query") query.append(input.source, String(value));
       else if (input.source === "") wholeBody = value;
       else body[input.source] = value;
     }
 
     const headers: Record<string, string> = { accept: "application/json", ...extraHeaders };
-    if (auth.cookie && credentials.cookie) headers.cookie = credentials.cookie;
-    if (auth.bearer && credentials.bearer) headers.authorization = `Bearer ${credentials.bearer}`;
+    // The session cookie and token belong to the site they were copied from. An operation on
+    // another site (an extra recorded origin) never gets them. API keys are per operation already.
+    if (this.sameSite(url)) {
+      if (auth.cookie && credentials.cookie) headers.cookie = credentials.cookie;
+      if (auth.bearer && credentials.bearer) headers.authorization = `Bearer ${credentials.bearer}`;
+    }
     for (const key of auth.apiKeys ?? []) {
       const value = credentials.apiKeys?.[key.name];
       if (value === undefined) continue;
@@ -119,13 +135,26 @@ export class HttpClient {
     const qs = query.toString();
     await this.throttle();
     const target = qs ? `${url}${url.includes("?") ? "&" : "?"}${qs}` : url;
+    const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const signal = AbortSignal.timeout(timeoutMs);
     let res: Response;
     try {
-      res = await fetch(target, { method: http.method, headers, body: payload, redirect: "manual" });
+      res = await fetch(target, { method: http.method, headers, body: payload, redirect: "manual", signal });
     } catch (err) {
-      throw new Error(networkErrorMessage(err, target));
+      throw new Error(networkErrorMessage(err, target, timeoutMs));
     }
-    return { status: res.status, contentType: res.headers.get("content-type") ?? "", text: await res.text() };
+    let received;
+    try {
+      received = await readCapped(res, this.options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES);
+    } catch (err) {
+      throw new Error(networkErrorMessage(err, target, timeoutMs));
+    }
+    return { status: res.status, contentType: res.headers.get("content-type") ?? "", ...received };
+  }
+
+  private sameSite(url: string): boolean {
+    const primary = new URL(this.options.baseUrl ?? this.options.recordedBaseUrl).hostname;
+    return siteOf(new URL(url).hostname) === siteOf(primary);
   }
 
   private async throttle() {
@@ -149,8 +178,43 @@ const NETWORK_REASONS: Record<string, string> = {
   DEPTH_ZERO_SELF_SIGNED_CERT: "self-signed TLS certificate",
 };
 
+/** A path argument fills one segment: `.` and `..` would make the URL point somewhere else. */
+function pathSegment(name: string, value: unknown): string {
+  const text = String(value);
+  if (text === "" || text === "." || text === "..") {
+    throw new Error(`input ${name} cannot be "${text}": it is part of the URL path`);
+  }
+  return encodeURIComponent(text);
+}
+
+/** Reads the body up to a byte limit, so one huge response cannot exhaust memory. */
+async function readCapped(res: Response, maxBytes: number): Promise<{ text: string; truncated?: boolean }> {
+  if (!res.body) return { text: "" };
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  let truncated = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (size + value.byteLength > maxBytes) {
+      chunks.push(value.subarray(0, maxBytes - size));
+      truncated = true;
+      await reader.cancel();
+      break;
+    }
+    chunks.push(value);
+    size += value.byteLength;
+  }
+  const text = new TextDecoder().decode(Buffer.concat(chunks));
+  return truncated ? { text, truncated } : { text };
+}
+
 /** fetch() only says "fetch failed"; the useful part is in err.cause. */
-export function networkErrorMessage(err: unknown, url: string): string {
+export function networkErrorMessage(err: unknown, url: string, timeoutMs?: number): string {
+  if ((err as { name?: string })?.name === "TimeoutError") {
+    return `${new URL(url).origin} did not answer within ${Math.round((timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000)} s`;
+  }
   const cause = (err as { cause?: { code?: string; message?: string } })?.cause;
   const code = cause?.code ?? "";
   const reason = NETWORK_REASONS[code] ?? cause?.message ?? (err instanceof Error ? err.message : String(err));

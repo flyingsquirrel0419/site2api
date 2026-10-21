@@ -15,6 +15,12 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   private jsonSchemaSupported = true;
 
   constructor(private readonly options: OpenAiOptions) {
+    const url = new URL(options.baseUrl);
+    // The API key and the site's context would travel in clear text; local servers (Ollama) are fine.
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
+      throw new LlmError(`SITE2API_LLM_BASE_URL must use https:// (plain http:// is only allowed for localhost): ${url.origin}`);
+    }
     this.label = `openai-compatible:${options.model}@${new URL(options.baseUrl).host}`;
   }
 

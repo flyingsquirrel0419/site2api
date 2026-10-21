@@ -1,6 +1,6 @@
 // Catalog + annotations → tools.json.
 import type { Annotations } from "../infer/annotations.js";
-import { defaultKind, type Catalog, type CatalogOperation } from "../spec/catalog.js";
+import { effectiveKind, type Catalog, type CatalogOperation } from "../spec/catalog.js";
 import { apiKeyEnv, type HttpCall, type ToolDef, type ToolsFile } from "./types.js";
 
 export interface BuildToolsOptions {
@@ -23,7 +23,7 @@ export function buildTools(catalog: Catalog, annotations: Annotations, options: 
   const skipped: ToolsFile["skipped"] = [];
   for (const op of catalog.operations) {
     const ann = anns[op.id] ?? {};
-    const kind = ann.kind ?? defaultKind(op);
+    const kind = effectiveKind(op, ann.kind);
     if (ann.include === false) skipped.push({ operationId: op.id, reason: "excluded by annotations" });
     else if (kind === "auth") skipped.push({ operationId: op.id, reason: "login/session operation (never exposed)" });
     else if (kind === "write" && !options.allowWrites) {

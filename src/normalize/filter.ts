@@ -40,8 +40,23 @@ const ANALYTICS_HOSTS = [
 // Second-level labels under which registrable domains take three labels (example.co.kr).
 const SECOND_LEVEL = new Set(["co", "com", "or", "ne", "go", "ac", "net", "org", "gov", "edu"]);
 
+// Shared hosting where every subdomain belongs to someone else (from the Public Suffix List's
+// private section). alice.github.io and bob.github.io are different sites: their cookies and
+// sessions must never mix.
+const SHARED_SUFFIXES = [
+  "github.io", "gitlab.io", "vercel.app", "netlify.app", "pages.dev", "workers.dev", "herokuapp.com",
+  "onrender.com", "fly.dev", "web.app", "firebaseapp.com", "appspot.com", "azurewebsites.net",
+  "cloudfront.net", "blogspot.com", "glitch.me", "replit.app", "deno.dev", "surge.sh", "ngrok.app",
+  "ngrok-free.app", "trycloudflare.com", "s3.amazonaws.com", "amplifyapp.com", "railway.app",
+];
+
 export function siteOf(host: string): string {
   if (host === "localhost" || /^[\d.]+$/.test(host) || host.includes(":")) return host;
+  const shared = SHARED_SUFFIXES.find((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+  if (shared) {
+    const labels = host.slice(0, -shared.length - 1).split(".").filter(Boolean);
+    return labels.length > 0 ? `${labels.at(-1)}.${shared}` : host;
+  }
   const labels = host.split(".");
   if (labels.length <= 2) return host;
   const take = SECOND_LEVEL.has(labels[labels.length - 2]!) && labels.at(-1)!.length === 2 ? 3 : 2;

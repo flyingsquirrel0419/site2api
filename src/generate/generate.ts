@@ -125,7 +125,7 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
     "Claude Code:",
     "",
     "```bash",
-    `claude mcp add ${name} ${envLines.map((l) => `--env ${l.split(":")[0]}=...`).join(" ")} -- node ${serverPath}`.replace(/\s+--/, " --"),
+    `claude mcp add ${name} ${envLines.map((l) => `--env ${l.split(":")[0]}=...`).join(" ")} -- node ${shellQuote(serverPath)}`.replace(/\s+--/, " --"),
     "```",
     "",
     "Cursor (`.cursor/mcp.json`) and other clients that use the same format:",
@@ -180,4 +180,9 @@ const VERIFIED_MARK: Record<string, string> = {
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "site";
+}
+
+/** For a command the user pastes: a path with spaces or `$(…)` must stay one literal argument. */
+function shellQuote(text: string): string {
+  return /^[\w@%+=:,./-]+$/.test(text) ? text : `'${text.replace(/'/g, `'\\''`)}'`;
 }

@@ -6,7 +6,7 @@ import { graphqlCall } from "../normalize/graphql.js";
 import { concretePointer, type Dependencies } from "../normalize/links.js";
 import { inferScalarSchema, inferSchema, type Schema } from "../normalize/schema.js";
 import { singular } from "../normalize/template.js";
-import { redactValue } from "../redact.js";
+import { redactGraphqlQuery, redactValue } from "../redact.js";
 import type { Operation, OperationAuth } from "./operations.js";
 
 export interface SpecOptions {
@@ -176,7 +176,7 @@ function graphqlEntry(op: Operation, operationId: string, options: SpecOptions):
     operationName: gql.operationName,
     operationType: gql.operationType,
     endpoint: { method: op.method, url: op.origin + op.template },
-    query: gql.query,
+    query: redactGraphqlQuery(gql.query),
   };
   if (variables.length > 0) entry.variables = inferSchema(variables);
   entry.response = inferSchema(op.exchanges.map((ex) => parseJson(ex.responseBody)).filter((v) => v !== undefined));

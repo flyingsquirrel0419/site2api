@@ -4,6 +4,8 @@ export interface EntrySpec {
   url: string;
   requestHeaders?: Record<string, string>;
   requestBody?: unknown;
+  /** Request body text as is, e.g. a form body. Overrides requestBody. */
+  rawRequestBody?: string;
   /** Content type the HAR records for the request body (default application/json). */
   requestMime?: string;
   status?: number;
@@ -21,8 +23,8 @@ export function har(entries: EntrySpec[]): string {
           method: e.method ?? "GET",
           url: e.url,
           headers: Object.entries(e.requestHeaders ?? {}).map(([name, value]) => ({ name, value })),
-          ...(e.requestBody !== undefined
-            ? { postData: { mimeType: e.requestMime ?? "application/json", text: JSON.stringify(e.requestBody) } }
+          ...(e.rawRequestBody !== undefined || e.requestBody !== undefined
+            ? { postData: { mimeType: e.requestMime ?? "application/json", text: e.rawRequestBody ?? JSON.stringify(e.requestBody) } }
             : {}),
         },
         response: {

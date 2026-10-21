@@ -2,11 +2,11 @@
 // used, either by a person in a visible window or by a capture script (headless, for servers, CI
 // and agents). Either way it is a plain browser: no stealth, no bot-detection evasion, and a
 // script is held to a request budget and a human pace.
+import { chmod, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { BrowserContext, Page } from "playwright";
-import { siteOf } from "../normalize/filter.js";
 
 export const DEFAULT_PROFILE_DIR = process.env.SITE2API_PROFILE_DIR ?? join(homedir(), ".site2api", "profile");
 
@@ -48,8 +48,10 @@ export async function loadCaptureScript(path: string): Promise<CaptureScript> {
 }
 
 export interface RecordResult {
-  /** Cookie header for the site at the end of the recording. Kept in memory only, never written. */
+  /** Cookie header for the start URL at the end of the recording. Kept in memory only, never written. */
   cookieHeader?: string;
+  /** The profile's cookies at the end, to build a header for another host. Memory only. */
+  cookies: StoredCookie[];
   /** How the recording ended. */
   endedBy: "user" | "browser-closed" | "script" | "request-limit";
   /** Page loads + API calls seen during the recording. */
@@ -77,6 +79,9 @@ async function launch(
   options: { headless: boolean; channel?: string | null; harPath?: string },
 ): Promise<BrowserContext> {
   const { chromium } = await loadPlaywright();
+  // The profile holds logins for every site recorded with it: keep it to this user.
+  await mkdir(profileDir, { recursive: true, mode: 0o700 });
+  await chmod(profileDir, 0o700);
   const base = {
     headless: options.headless,
     viewport: null,
@@ -148,13 +153,15 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   }
   const endedBy = await Promise.race([finished, closed, lastTabClosed, limitReached]);
 
-  let cookieHeader: string | undefined;
+  let cookies: StoredCookie[] = [];
   if (!browserClosed) {
-    cookieHeader = cookieHeaderFor(await context.cookies(), options.url);
+    cookies = await context.cookies();
     await context.close(); // flushes the HAR; a script still running fails from here on
   }
+  // The HAR holds the session; Playwright writes it with the default umask.
+  await chmod(options.harPath, 0o600).catch(() => {});
   if (endedBy !== "script") scriptError = undefined; // errors after we closed the browser are expected
-  return { cookieHeader, endedBy, requests, ...(scriptError && { scriptError }) };
+  return { cookieHeader: cookieHeaderFor(cookies, options.url), cookies, endedBy, requests, ...(scriptError && { scriptError }) };
 }
 
 /** Persistent cookies stored in the dedicated profile (session cookies do not survive a restart). */
@@ -167,12 +174,31 @@ export async function cookiesFromProfile(url: string, profileDir = DEFAULT_PROFI
   }
 }
 
-/** One Cookie header with every cookie of the site (any subdomain), like copying it from DevTools. */
-export function cookieHeaderFor(cookies: { name: string; value: string; domain: string }[], url: string): string | undefined {
-  const site = siteOf(new URL(url).hostname);
+export interface StoredCookie {
+  name: string;
+  value: string;
+  domain: string;
+  secure?: boolean;
+  /** Unix seconds; -1 for a session cookie. */
+  expires?: number;
+}
+
+/**
+ * The Cookie header a browser would send to this URL's host (RFC 6265 domain matching), like
+ * copying it from DevTools. Matching by host, not by site, matters on shared hosting: on
+ * alice.github.io it must not pick up cookies another recording left for bob.github.io.
+ */
+export function cookieHeaderFor(cookies: StoredCookie[], url: string): string | undefined {
+  const { hostname: host, protocol } = new URL(url);
+  const secureContext = protocol === "https:" || host === "localhost" || host === "127.0.0.1";
+  const now = Date.now() / 1000;
   const matching = cookies.filter((c) => {
-    const domain = c.domain.replace(/^\./, "");
-    return domain === site || domain.endsWith(`.${site}`);
+    if (c.secure && !secureContext) return false;
+    if (c.expires !== undefined && c.expires > 0 && c.expires < now) return false;
+    // Playwright marks domain cookies with a leading dot; without it a cookie is host-only.
+    if (!c.domain.startsWith(".")) return c.domain === host;
+    const domain = c.domain.slice(1);
+    return host === domain || host.endsWith(`.${domain}`);
   });
   return matching.length > 0 ? matching.map((c) => `${c.name}=${c.value}`).join("; ") : undefined;
 }

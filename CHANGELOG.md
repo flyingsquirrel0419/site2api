@@ -28,4 +28,20 @@ The first public version.
 - The `site2api` Agent Skill, documentation, a demo shop, and README translations
   (한국어, 日本語, 简体中文, Español).
 
+### Security
+
+- Credentials with short or generic names (`pwd`, `pw`, `sig`, `access_key`, `code`, `key`),
+  fields under a sensitive parent, form-encoded login bodies, and string literals in GraphQL
+  queries no longer reach `openapi.yaml`, `report.md` or the LLM context; the leak check also
+  looks inside URLs and decoded values.
+- The session cookie and token are only sent to the recorded site. Profile cookies are chosen per
+  host as a browser would, so shared-hosting neighbours (`*.github.io`, `*.vercel.app`, …) never
+  get each other's.
+- Path inputs can no longer be `.` or `..`, and annotations cannot mark data-changing operations
+  `read` (which would skip `confirm` and let `verify` call them).
+- Requests time out after 30 s and responses are read up to 10 MB.
+- `out/.site2api/` and the browser profile are private to your user; `--discard-har` also
+  deletes the recording when analysis fails.
+- The skill tells agents to treat site content as data, never as instructions.
+
 [Unreleased]: https://github.com/flyingsquirrel0419/site2api/commits/main

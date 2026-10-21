@@ -85,7 +85,7 @@ Whoever writes it, the format is the same (`out/infer/annotations.schema.json`):
 | `tool` | snake_case `verb_noun`, unique |
 | `description` | What it returns or does, when to use it, where its inputs come from |
 | `params` | One description per input, using the input names from `context.md` |
-| `kind` | `read`, `write` (creates, changes, deletes, sends, buys) or `auth` (never exposed) |
+| `kind` | `read`, `write` (creates, changes, deletes, sends, buys) or `auth` (never exposed). `read` is refused for operations that can change data (PUT, PATCH, DELETE, GraphQL mutations, most POSTs) |
 | `include` | `false` drops noise: telemetry, feature flags, health checks |
 
 Anything left out keeps its default. Operations that hand out credentials (login, the CSRF token
