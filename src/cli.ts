@@ -105,7 +105,7 @@ async function recordToDir(url: string, opts: RecordCliOptions): Promise<string 
   const script = opts.script ? await loadCaptureScript(opts.script) : undefined;
   const maxRequests = Number(opts.maxRequests ?? 60);
   if (script) {
-    console.log(`Running ${opts.script} against ${url} (profile ${opts.profileDir}, at most ${maxRequests} requests).`);
+    console.log(`Running ${opts.script} against ${url} (at most ${maxRequests} requests).`);
   } else {
     console.log(`Opening ${url} in a separate browser profile (${opts.profileDir}).`);
     console.log("Log in if needed, then use each feature you want as a tool, twice or more.");
@@ -141,7 +141,7 @@ async function recordToDir(url: string, opts: RecordCliOptions): Promise<string 
     await rm(join(opts.out, SOURCE_FILE), { force: true });
     console.log("Deleted the recording (--discard-har).");
   } else {
-    console.log(`The recording at ${harPath} contains your login session; do not share or commit it.`);
+    console.log(`recording kept at ${harPath} (it holds your session: don't share or commit it)`);
   }
   return cookieHeader;
 }
@@ -219,18 +219,31 @@ program
   .argument("[dir]", "output directory of from-har", "out")
   .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
   .option("--only-verified", "keep only read tools that passed `site2api verify` (warnings count as passing)", false)
-  .action(async (dir: string, opts: { allowWrites: boolean; onlyVerified: boolean }) => {
+  .option("--name <name>", "server name (default: from annotations, else the recorded host)")
+  .action(async (dir: string, opts: GenerateCliOptions) => {
     await generateDir(dir, opts);
   });
 
-async function generateDir(dir: string, opts: { allowWrites: boolean; onlyVerified: boolean }) {
+interface GenerateCliOptions {
+  allowWrites: boolean;
+  onlyVerified: boolean;
+  name?: string;
+  /** Set by `run`, which already said that annotation was skipped. */
+  quietAnnotations?: boolean;
+}
+
+async function generateDir(dir: string, opts: GenerateCliOptions) {
   const runtimePath = fileURLToPath(new URL("./runtime/server.mjs", import.meta.url));
   try {
-    const result = await generate(dir, { allowWrites: opts.allowWrites, onlyVerified: opts.onlyVerified, runtimePath });
-    for (const w of result.warnings) console.warn(`warning: ${w}`);
-    console.log(`${result.tools.tools.length} tools, ${result.tools.skipped.length} skipped → ${result.outDir}`);
+    const result = await generate(dir, { allowWrites: opts.allowWrites, onlyVerified: opts.onlyVerified, name: opts.name, runtimePath });
+    for (const w of result.warnings) {
+      if (opts.quietAnnotations && w.startsWith("No annotations.json")) continue;
+      console.warn(`warning: ${w}`);
+    }
+    console.log(`${result.tools.tools.length} tools → ${result.outDir}`);
     for (const t of result.tools.tools) console.log(`  ${t.kind === "write" ? "✎" : "·"} ${t.name}`);
-    console.log(`see ${join(result.outDir, "README.md")} to register it with your agent`);
+    if (result.tools.skipped.length > 0) console.log(`  (${result.tools.skipped.length} left out; see tools.json)`);
+    console.log(`register it: ${join(result.outDir, "mcp.json")} (setup in ${join(result.outDir, "README.md")})`);
   } catch (err) {
     if (err instanceof AnnotationsError) {
       console.error(err.message);
@@ -322,7 +335,14 @@ function printVerify(report: VerifyReport) {
     console.log(`${mark[r.status]} ${r.tool.padEnd(28)} ${detail}`);
   }
   const s = report.summary;
-  console.log(`\n${s.pass} passed, ${s.warn} with missing fields, ${s.fail} failed, ${s.error} errors, ${s.skipped} skipped`);
+  const counts = [
+    [s.pass, "passed"],
+    [s.warn, "with missing fields"],
+    [s.fail, "failed"],
+    [s.error, "errors"],
+    [s.skipped, "skipped"],
+  ].filter(([n]) => (n as number) > 0);
+  console.log(`\n${counts.map(([n, label]) => `${n} ${label}`).join(", ") || "nothing to verify"}`);
   if (s.warn > 0) console.log("Missing fields are usually optional ones every recorded sample happened to include; they count as passing.");
 }
 
@@ -340,7 +360,8 @@ program
   .option("--script <file>", "drive the site with a capture script (.mjs) instead of by hand; runs headless")
   .option("--headed", "show the browser window while a script runs", false)
   .option("--max-requests <n>", "stop a script after this many page loads + API calls", "60")
-  .action(async (url: string, opts: RecordCliOptions & { provider?: string; model?: string; allowWrites: boolean }) => {
+  .option("--name <name>", "server name (default: from annotations, else the recorded host)")
+  .action(async (url: string, opts: RecordCliOptions & { provider?: string; model?: string; allowWrites: boolean; name?: string }) => {
     const dir = opts.out;
     console.log("── 1/4 record");
     const cookie = await recordToDir(url, opts);
@@ -350,16 +371,15 @@ program
       await inferDir(dir, { provider: opts.provider, model: opts.model, force: true });
     } catch (err) {
       if (!(err instanceof LlmError)) throw err;
-      console.warn(`skipped: ${err.message}`);
-      console.warn(`Tools keep heuristic names. To improve them later: site2api infer ${dir}, or ask your agent (site2api skill).`);
+      console.log("no LLM key set: kept heuristic tool names (refine with `site2api infer` or the skill)");
     }
 
     console.log("\n── 3/4 verify");
     await verifyDir(dir, { rate: "1", cookie });
 
     console.log("\n── 4/4 generate");
-    await generateDir(dir, { allowWrites: opts.allowWrites, onlyVerified: true });
-    console.log("\nDone. Register the server with your agent (see the README above) and set SITE2API_COOKIE in its config.");
+    await generateDir(dir, { allowWrites: opts.allowWrites, onlyVerified: true, name: opts.name, quietAnnotations: true });
+    console.log("\nDone.");
   });
 
 program.parseAsync().catch((err: unknown) => {

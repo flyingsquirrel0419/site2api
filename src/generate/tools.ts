@@ -8,6 +8,8 @@ export interface BuildToolsOptions {
   allowWrites?: boolean;
   /** Results of `site2api verify`, by operationId. */
   verified?: Map<string, NonNullable<ToolDef["verified"]>>;
+  /** Server and site name; overrides annotations and the recorded host. */
+  name?: string;
   /** Drop read tools that did not pass verify ("warn" counts as passing). Writes are never called by verify, so they are kept. */
   onlyVerified?: boolean;
 }
@@ -15,7 +17,7 @@ export interface BuildToolsOptions {
 export function buildTools(catalog: Catalog, annotations: Annotations, options: BuildToolsOptions = {}): ToolsFile {
   const anns = annotations.operations;
   const toolName = new Map(catalog.operations.map((op) => [op.id, anns[op.id]?.tool ?? op.id]));
-  const siteName = annotations.site?.name ?? catalog.site;
+  const siteName = options.name ?? annotations.site?.name ?? catalog.site;
 
   const tools: ToolDef[] = [];
   const skipped: ToolsFile["skipped"] = [];

@@ -13,6 +13,8 @@ export { AnnotationsError, SECRETS_FILE, VERIFY_FILE } from "../workspace.js";
 export interface GenerateOptions {
   allowWrites?: boolean;
   onlyVerified?: boolean;
+  /** Server name (default: the site name from annotations, else the recorded host). */
+  name?: string;
   /** Path of the bundled runtime (dist/runtime/server.mjs). */
   runtimePath: string;
 }
@@ -45,14 +47,25 @@ export async function generate(dir: string, options: GenerateOptions): Promise<G
     warnings.push("Not verified yet: run `site2api verify` to check every read tool against the live site.");
   }
 
-  const tools = buildTools(catalog, annotations, { allowWrites: options.allowWrites, verified, onlyVerified: options.onlyVerified });
+  const tools = buildTools(catalog, annotations, {
+    allowWrites: options.allowWrites,
+    verified,
+    onlyVerified: options.onlyVerified,
+    name: options.name,
+  });
   const toolsJson = JSON.stringify(tools, null, 2) + "\n";
-  const readme = renderReadme(tools, resolve(dir, "mcp", "server.mjs"));
+  const serverPath = resolve(dir, "mcp", "server.mjs");
+  const readme = renderReadme(tools, serverPath);
+  // Standard mcpServers config. Credentials are ${VAR} references, expanded from the environment
+  // by clients that support it (Claude Code, Codex); never values.
+  const mcpJson =
+    JSON.stringify({ mcpServers: { [slug(tools.site.name)]: { command: "node", args: [serverPath], ...envRefs(tools) } } }, null, 2) + "\n";
 
   const fp = await loadFingerprint(dir);
   if (fp) {
     assertNoFingerprintedSecrets(toolsJson, fp, "tools.json");
     assertNoFingerprintedSecrets(readme, fp, "README.md");
+    assertNoFingerprintedSecrets(mcpJson, fp, "mcp.json");
   } else {
     warnings.push(`No ${SECRETS_FILE} found, so the output could not be checked for leaked credentials.`);
   }
@@ -62,6 +75,7 @@ export async function generate(dir: string, options: GenerateOptions): Promise<G
   await mkdir(outDir, { recursive: true });
   await writeFile(join(outDir, "tools.json"), toolsJson);
   await writeFile(join(outDir, "README.md"), readme);
+  await writeFile(join(outDir, "mcp.json"), mcpJson);
   await writeFile(
     join(outDir, "package.json"),
     JSON.stringify(
@@ -144,6 +158,15 @@ function renderReadme(tools: ToolsFile, serverPath: string): string {
     "",
   );
   return lines.join("\n");
+}
+
+function envRefs(tools: ToolsFile): { env?: Record<string, string> } {
+  const names = [
+    ...(tools.tools.some((t) => t.auth.cookie) ? ["SITE2API_COOKIE"] : []),
+    ...(tools.tools.some((t) => t.auth.bearer) ? ["SITE2API_BEARER"] : []),
+    ...new Set(tools.tools.flatMap((t) => t.auth.apiKeys.map((k) => k.env))),
+  ];
+  return names.length > 0 ? { env: Object.fromEntries(names.map((n) => [n, `\${${n}}`])) } : {};
 }
 
 const VERIFIED_MARK: Record<string, string> = {

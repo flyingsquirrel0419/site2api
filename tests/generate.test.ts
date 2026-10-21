@@ -86,6 +86,12 @@ describe("generate", () => {
     const readme = await readFile(join(dir, "mcp", "README.md"), "utf8");
     expect(readme).toContain("SITE2API_COOKIE");
     expect(readme).toContain("| `get_order` | read |");
+    const mcp = JSON.parse(await readFile(join(dir, "mcp", "mcp.json"), "utf8"));
+    expect(mcp.mcpServers["demo-shop"]).toEqual({
+      command: "node",
+      args: [join(dir, "mcp", "server.mjs")],
+      env: { SITE2API_COOKIE: "${SITE2API_COOKIE}" },
+    });
   });
 
   it("reports annotation errors for the agent to fix", async () => {
