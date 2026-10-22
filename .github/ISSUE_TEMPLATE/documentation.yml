@@ -1,0 +1,24 @@
+name: Documentation
+description: Something in the docs, a README translation or the Agent Skill is wrong, unclear or missing.
+labels: [documentation, needs-triage]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The file or page, and the section.
+      placeholder: "docs/getting-started.md, step 3"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+      description: What you read, what you expected, and what actually happened if you followed it.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested wording
+      description: Optional. A pull request is welcome too; see CONTRIBUTING.md.

@@ -1,6 +1,6 @@
 name: Feature request
 description: An idea for site2api.
-labels: [enhancement]
+labels: [enhancement, needs-triage]
 body:
   - type: textarea
     id: problem

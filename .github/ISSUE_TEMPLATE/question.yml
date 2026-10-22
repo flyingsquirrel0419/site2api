@@ -1,0 +1,28 @@
+name: Question
+description: How do I…? Ask about using site2api when the docs don't answer it.
+labels: [question, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [the docs](https://github.com/flyingsquirrel0419/site2api/tree/main/docs) first.
+        **Never paste a HAR file, a cookie, a token or an API key.**
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What you want to do, and what you tried.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: site2api version
+      placeholder: "1.0.0"
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Check
+      options:
+        - label: This issue contains no HAR file, cookie, token, API key or other credential.
+          required: true
