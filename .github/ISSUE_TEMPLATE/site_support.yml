@@ -1,6 +1,6 @@
 name: Site doesn't work
 description: site2api ran, but the tools for a site are missing, wrong, or fail verify.
-labels: [site-support]
+labels: [site-support, needs-triage]
 body:
   - type: markdown
     attributes:

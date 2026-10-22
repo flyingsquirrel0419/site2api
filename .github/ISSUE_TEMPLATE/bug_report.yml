@@ -1,6 +1,6 @@
 name: Bug report
 description: site2api crashed, printed something wrong, or generated a broken server.
-labels: [bug]
+labels: [bug, needs-triage]
 body:
   - type: markdown
     attributes:
