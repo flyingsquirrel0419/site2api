@@ -4,8 +4,8 @@
 
 <h1 align="center">site2api</h1>
 
-<p align="center"><b>자주 쓰는 웹사이트를 검증된 MCP 서버로 바꿉니다.</b><br>
-사이트를 한 번만 써 보세요. 에이전트는 실제 사이트로 검증을 마친 진짜 도구를 얻습니다.</p>
+<p align="center"><b>사용 중인 웹앱을 에이전트가 호출할 수 있는 MCP 도구로 만드세요.</b><br>
+몇 가지 동작을 기록하고 로컬 MCP 서버를 생성한 뒤, 읽기 도구를 실제 사이트에서 검증합니다.</p>
 
 <p align="center">
   <a href="https://github.com/flyingsquirrel0419/site2api/actions/workflows/ci.yml"><img src="https://github.com/flyingsquirrel0419/site2api/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -16,140 +16,98 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="스캐너 빔이 웹사이트 카드를 엑스레이처럼 훑자 숨은 API 호출이 검증된 도구 세 개가 되어 MCP로 에이전트에 연결되는 모습" width="860">
-  <br><sub>모든 웹사이트에는 이미 API가 있습니다. site2api가 그걸 꺼내고, 검증해서, 에이전트에게 넘겨줍니다. (<a href="docs/assets/demo.mp4">고화질 영상</a>)</sub>
+  <img src="docs/assets/demo.gif" alt="기록한 웹앱의 요청이 에이전트에 연결되는 MCP 도구 세 개로 변하는 모습" width="860">
+  <br><sub>브라우저 요청에서 호출 가능한 도구까지. <a href="docs/assets/demo.mp4">고화질 영상 보기</a>.</sub>
 </p>
 
----
+## 왜 site2api인가요?
 
-## 문제
+많은 웹앱은 자체 프런트엔드에서 JSON이나 GraphQL API를 호출하지만, 필요한 기능을 위한 공개 API는 제공하지 않습니다. 에이전트가 매번 브라우저를 조작할 수도 있지만, 그러면 작업마다 화면 동작에 의존하게 됩니다.
 
-매일 쓰는 사이트 대부분에는 공개 API가 없습니다. 쇼핑몰, 은행 대시보드, 회사 내부 도구,
-즐겨 읽는 포럼 모두 그렇습니다. 이 사이트들의 프런트엔드는 멀쩡한 비공개 API와 통신하지만,
-에이전트는 그 API를 볼 수 없습니다. 그래서 HTML을 스크래핑하거나 브라우저를 한 번씩 클릭하며
-조작합니다. 느리고, 쉽게 깨지고, 비쌉니다.
+site2api는 사용자가 웹앱을 이용하는 동안 그 요청을 기록합니다. 작업과 입력 형식을 파악하고 주문 ID 같은 값의 출처를 추적한 다음 로컬 MCP 서버를 생성합니다. 생성 전에 읽기 작업을 실제 사이트에 호출해 기록된 응답과 일치하는지 확인합니다.
 
-**site2api는 사용자가 사이트를 쓰는 동안 그 비공개 API를 지켜보고, 에이전트에게 그 API용 MCP
-서버를 만들어 줍니다.** 엔드포인트, 입력값과 그 출처, 로그인 방식을 알아낸 다음, 사용자가 쓰기
-전에 모든 읽기 전용 도구를 실제 사이트에 호출해 봅니다.
+**잘 맞는 대상:** JSON 또는 GraphQL API를 사용하는 웹앱, 대시보드, 사용 권한이 있는 사내 도구, 검색 화면. HTML만 반환하는 사이트나 일반 브라우저 접근을 차단하는 사이트에는 적합하지 않습니다.
 
 ## 빠른 시작
 
-
-**코딩 에이전트로** (Claude Code, Cursor, Codex 등
-[Agent Skills](https://agentskills.io)를 지원하는 모든 에이전트): [`skills/site2api`](skills/site2api)를
-프로젝트의 `.claude/skills/` 또는 `.agents/skills/`에 복사한 뒤 이렇게 요청하세요.
-
-> https://app.example.com용 MCP 서버를 만들어 줘. 검색, 내 주문 목록, 주문 상세가 필요해.
-
-스킬이 녹화, 도구 이름 짓기, 검증, 생성까지 에이전트를 안내합니다. API 키는 필요 없습니다.
-생각은 에이전트가 합니다.
-
-**명령어 한 줄로:**
+Node.js 22.12 이상과 설치된 Chrome이 필요합니다. Chrome을 사용할 수 없다면 `npx playwright install chromium`으로 Playwright Chromium을 한 번 설치하세요.
 
 ```bash
 npx site2api run https://app.example.com
 ```
 
-브라우저 창이 열립니다. 로그인하고, 도구로 만들고 싶은 기능을 사용한 뒤(기능마다 두 번씩이 가장 좋습니다)
-Enter를 누르세요. 그러면 독립 실행형 서버인 `out/mcp/`가 만들어집니다.
-
-```bash
-claude mcp add app -e SITE2API_COOKIE='…' -- node out/mcp/server.mjs   # or use out/mcp/mcp.json
-```
-
-화면이 없거나 CI에서 실행하나요? 대신 스크립트로 브라우저를 조작하세요.
-`npx site2api run https://app.example.com --script capture.mjs` ([캡처 스크립트](docs/capture-scripts.md)).
-
-## 작동 방식
-
-<p align="center"><img src="docs/assets/flow.svg" alt="녹화, 정규화, 추적, 추론, 검증, 생성" width="900"></p>
-
-| | 단계 | 하는 일 |
-|---|---|---|
-| 1 | **녹화** | 전용 프로필을 쓰는 브라우저가, 사용자(또는 스크립트)가 사이트를 쓰는 동안 API 호출을 녹화합니다. DevTools에서 받은 HAR을 가져와도 됩니다. |
-| 2 | **정규화** | 정적 파일과 분석 요청을 걸러내고, `/orders/3f6c…`를 `/orders/{orderId}`로 바꾸고, JSON 스키마를 병합하고, GraphQL 작업을 분리하고, 쿠키·bearer 토큰·CSRF 헤더·API 키를 감지합니다. |
-| 3 | **추적** | 모든 입력값의 출처를 찾습니다. 주문 ID는 주문 목록에서, CSRF 토큰은 `/api/session`에서 옵니다. 결정적으로 동작하며 LLM을 쓰지 않습니다. |
-| 4 | **추론** | 도구 이름과 설명을 짓고, 각 작업을 읽기·쓰기·인증으로 분류합니다. 코딩 에이전트가 스킬로 처리하거나, `site2api infer`가 Claude 또는 OpenAI 호환 API를 호출합니다. |
-| 5 | **검증** | 모든 읽기 전용 도구를 실제 사이트에 호출하고 응답을 녹화된 스키마와 대조합니다. 쓰기와 로그인 작업은 절대 호출하지 않습니다. |
-| 6 | **생성** | `server.mjs` + `tools.json` + `mcp.json`. MCP SDK가 번들된 단일 파일이라 `node server.mjs`만 실행하면 되고, 설치할 것이 없습니다. |
-
-자세히: [작동 방식](docs/how-it-works.md).
-
-## 에이전트가 얻는 것
-
-- **서로 이어지는 도구.** 설명에 입력값의 출처가 적혀 있어서("`list_orders` 결과의
-  `orderId` 사용"), 에이전트가 추측 없이 `list_orders` → `get_order`를 호출합니다.
-- **꼭 필요한 입력만.** 녹화 중 한 번도 바뀌지 않은 값(클라이언트 버전, 페이지 크기 등)은
-  기본값이 됩니다. hn.algolia.com에서는 검색 도구의 필수 입력이 19개에서 3개로
-  줄었습니다.
-- **로그인 자동 처리.** 세션 쿠키, bearer 토큰, API 키는 환경 변수에서 가져오고,
-  CSRF 토큰은 자동으로 받아오고 갱신합니다.
-- **쓰기는 잠금 뒤에.** 데이터를 바꾸는 도구는 `--allow-writes`를 넘기지 않으면 제외되며,
-  넘기더라도 호출할 때마다 `confirm: true`가 필요합니다.
-- **명확한 실패 메시지.** 세션이 만료되면 만료됐다고 알려 줍니다. 사이트에 연결할 수 없으면 어느 호스트가 왜 안 되는지 알려 줍니다.
-
-자세히: [생성된 서버](docs/generated-server.md).
-
-## 생성으로 끝나지 않고, 검증까지
+전용 브라우저 프로필이 열립니다. 필요하면 로그인하고, 도구로 만들 기능을 서로 다른 입력으로 각각 두 번 이상 사용한 뒤 Enter를 누르세요. 명령어가 기록·분석·읽기 작업 검증을 마치고 독립 실행형 서버를 `out/mcp/`에 생성합니다. LLM 제공자를 설정하지 않았다면 휴리스틱 도구 이름을 사용하며, 나중에 다듬을 수 있습니다.
 
 ```text
-✅ list_orders                  HTTP 200
-✅ get_order                    HTTP 200
-🟡 search_stories               HTTP 200, but missing: /processingTimingsMS/fetch/total
-❌ get_product                  /price: expected number, got string
+out/
+├── report.md       # 작업과 입력값의 관계
+├── verify.json     # 읽기 작업별 통과·경고·실패·오류·건너뜀
+└── mcp/
+    ├── server.mjs  # MCP SDK가 포함된 서버
+    ├── tools.json  # 도구 정의
+    └── mcp.json    # 클라이언트 설정
 ```
 
-`site2api verify`는 연결된 응답이나 녹화에서 가져온 입력값으로 모든 읽기 도구를 실제 사이트에
-다시 실행합니다. **✅**는 일치합니다. **🟡**는 동작하지만, 항상 있던 일부 필드가 빠졌습니다(대개
-선택 필드입니다). **❌**는 타입이 바뀌었거나 예상하지 못한 상태 코드가 왔다는 뜻으로, API가 바뀌었을
-가능성이 높습니다. `generate --only-verified`는 ✅와 🟡를 남깁니다. 주기적으로 실행하면 API 변경을
-잡아낼 수 있습니다. 자세히: [verify](docs/verify.md).
+생성된 서버를 MCP 클라이언트에 등록하세요. Claude Code에서는 다음과 같이 실행합니다.
 
-## 비교
+```bash
+claude mcp add app -e SITE2API_COOKIE='<Cookie header>' -- node /absolute/path/to/out/mcp/server.mjs
+```
 
-| | HAR → OpenAPI 변환기 | 브라우저 조작 에이전트 | **site2api** |
-|---|---|---|---|
-| 결과물 | OpenAPI 파일 | 매번 클릭 | **MCP 서버** |
-| 호출당 속도 | — | 수 초에서 수 분 | **HTTP 요청 한 번** |
-| 입력값의 출처를 아는가 | 아니요 | 매번 새로 찾음 | **예, 트래픽에서 추적** |
-| 로그인, CSRF, API 키 | 직접 처리 | 실행할 때마다 | **서버가 처리** |
-| 실제 사이트로 검증 | 아니요 | — | **예 (`verify`)** |
-| LLM 필요 여부 | 아니요 | 단계마다 | **도구 이름 짓기에만, 선택 사항** |
+필요한 자격 증명만 생성된 `out/mcp/README.md`에서 확인해 설정하세요. 다른 클라이언트 설정은 [생성된 서버 안내](docs/generated-server.md)를 참고하세요. 화면 없이 기록하려면 [캡처 스크립트](docs/capture-scripts.md)를 사용하거나 DevTools의 HAR을 가져올 수 있습니다.
 
-## 원칙
+### 코딩 에이전트와 함께 사용하기
 
-site2api는 각 사이트의 이용 약관 범위 안에서 **본인 계정과 본인 데이터**를 위한 도구입니다.
+[`skills/site2api`](skills/site2api)를 프로젝트의 `.claude/skills/` 또는 `.agents/skills/`에 복사한 뒤 요청하세요.
 
-- **자격 증명을 저장하지 않습니다.** 쿠키, 토큰, 키 값은 스펙, 리포트, 주석, 검증 결과, 생성된
-  서버 어디에도 들어가지 않습니다. 모든 출력물을 캡처에서 발견된 자격 증명의 솔트 해시와 대조하며,
-  하나라도 포함된 파일은 site2api가 쓰기를 거부합니다.
-- **평범한 브라우저, 사람의 속도.** 사용자가 조작하든 스크립트가 조작하든, 스텔스도, 봇 탐지나
-  CAPTCHA 우회도, 프록시 로테이션도 없습니다. 스크립트에는 요청 예산과 단계 사이 최소 대기 시간이
-  있습니다. 대량 스크래핑은 목표가 아닙니다.
-- **쓰기는 기본적으로 꺼져 있으며**, `verify`는 쓰기 작업을 절대 호출하지 않습니다.
+> https://app.example.com용 MCP 서버를 만들어 줘. 검색, 내 주문 목록, 주문 상세가 필요해.
 
-자세히: [보안 모델](docs/security.md).
+스킬이 기록·도구 이름 지정·검증·생성 과정을 안내합니다. 기존 코딩 에이전트를 사용하므로 이 방식에는 별도의 LLM API 키가 필요하지 않습니다. 자세한 내용은 [에이전트에서 사용하기](docs/agents.md)를 참고하세요.
 
-## FAQ
+## 생성된 서버가 제공하는 기능
 
-**이거 스크래핑 아닌가요?** 아닙니다. 사이트의 프런트엔드가 호출하는 것과 같은 API를, 사용자 본인으로서,
-사용자가 직접 쓸 때와 같은 빈도로 호출합니다. 크롤링하지 않으며, 본인 계정용으로 만들어졌습니다.
+| 기능 | 작동 방식 |
+|---|---|
+| **필요한 입력만 노출** | 기록된 샘플에서 바뀌지 않은 값은 필수 인수가 아닌 기본값이 됩니다. |
+| **이어지는 도구 호출** | 설명에 `list_orders` 결과의 `orderId`처럼 입력값의 출처가 표시됩니다. |
+| **인증 처리** | 서버는 세션 쿠키·bearer 토큰·API 키를 환경 변수에서 읽고, 기록된 CSRF 토큰을 가져와 갱신할 수 있습니다. |
+| **쓰기 제어** | 쓰기 도구는 기본적으로 제외됩니다. `--allow-writes`를 사용해도 호출마다 `confirm: true`가 필요합니다. |
+| **로컬 결과물** | `server.mjs`에는 MCP SDK가 포함돼 있어 `out/mcp/`에서 추가 의존성 설치 없이 Node.js로 실행됩니다. |
 
-**CAPTCHA나 봇 차단이 있는 사이트는요?** site2api는 이를 우회하지 않습니다. 평범한 브라우저를
-차단하는 사이트라면 맞지 않습니다.
+기록부터 생성까지의 단계는 [작동 방식](docs/how-it-works.md)에 설명돼 있습니다.
 
-**화면 없는 서버에서도 동작하나요?** 네. 캡처 스크립트(`--script`)로 헤드리스 녹화를 하거나 HAR을
-가져오세요. 나머지 단계는 모두 이미 헤드리스로 동작합니다.
+## 연결하기 전에 검증하기
 
-**어떤 사이트에 가장 잘 맞나요?** 백엔드와 JSON이나 GraphQL로 통신하는 싱글 페이지 앱입니다. 쇼핑몰,
-대시보드, SaaS 도구, 검색 UI 등이 해당합니다. 서버 렌더링 HTML 페이지에는 찾을 API가 없습니다.
+```text
+✅ list_orders      HTTP 200
+🟡 search_stories   HTTP 200, but missing: /processingTimingsMS/fetch/total
+❌ get_product      /price: expected number, got string
+⚠️ get_profile      not authorized: credentials missing or expired
+⏭  get_invoice      needs input: invoiceId
+```
 
-**사이트가 바뀌면 어떻게 되나요?** `verify`가 어떤 도구가 어떻게 깨졌는지 알려 줍니다. 다시 녹화하고
-재생성하면 됩니다. 1분이면 끝납니다.
+`site2api verify out`은 읽기 작업을 실제 사이트에 호출하고 응답을 기록된 스키마와 비교합니다. **통과**는 일치, **경고**는 타입은 같지만 모든 기록 샘플에 있던 필드가 빠진 상태, **실패**는 예상 밖 상태 코드나 스키마 불일치, **오류**는 요청 실패, HTTP 401/403 응답 또는 리디렉션이 발생한 상태, **건너뜀**은 입력값 또는 자격 증명이 필요한 상태입니다. `verify`는 쓰기와 로그인 작업을 호출하지 않습니다. `generate --only-verified`는 통과·경고 상태의 읽기 도구를 포함합니다. 자세한 내용은 [검증 안내](docs/verify.md)를 참고하세요.
 
-**어떤 에이전트가 이 서버를 쓸 수 있나요?** 모든 MCP 클라이언트입니다. Claude Code, Cursor, Codex, Claude Desktop
-등이 있습니다. `out/mcp/mcp.json`은 표준 `mcpServers` 형식을 읽는 클라이언트에서 그대로 동작합니다.
+## 보안과 사용 범위
+
+사용 권한이 있는 계정과 데이터에 한해, 해당 사이트의 이용 약관에 따라 사용하세요.
+
+- **원본 기록은 비공개로 보관하세요.** HAR에는 세션 자격 증명이 포함될 수 있습니다. `--discard-har`를 선택하지 않으면 사용자만 읽을 수 있는 로컬 디렉터리에 남습니다. 커밋하거나 공유하지 마세요.
+- **생성 파일에는 기록된 자격 증명 값을 넣지 않습니다.** 명세·보고서·주석·검증 결과·서버 파일을 쓰기 전에 기록된 자격 증명의 지문과 대조합니다. 실행 중인 서버는 환경 변수에서 자격 증명을 읽습니다.
+- **쓰기는 명시적으로 활성화해야 합니다.** `verify`는 쓰기를 실행하지 않으며, 생성된 쓰기 도구도 호출마다 `confirm: true`가 필요합니다.
+- **차단 우회나 대량 크롤링을 위한 도구가 아닙니다.** CAPTCHA·봇 탐지를 우회하거나 스텔스 플러그인·프록시 로테이션을 사용하지 않습니다.
+
+선택 사항인 `infer` 명령은 기록된 값이 아닌 작업 이름과 데이터 구조를 설정된 LLM 제공자에게 전송합니다. site2api에는 텔레메트리가 없습니다. 정확한 데이터 흐름과 제한 사항은 [보안 모델](docs/security.md)을 참고하세요.
+
+## 자주 묻는 질문
+
+**LLM API 키가 필요한가요?** `run`의 휴리스틱 이름이나 기존 코딩 에이전트와 함께 쓰는 Agent Skill에는 필요하지 않습니다. 선택 사항인 `infer`에는 제공자 설정이 필요합니다.
+
+**세션이 만료되면 어떻게 하나요?** 서버 환경 변수의 자격 증명을 갱신하세요. 서버를 다시 생성할 필요는 없습니다.
+
+**사이트가 바뀌면 어떻게 하나요?** `site2api verify out`으로 영향을 받은 도구를 확인한 뒤, 필요하면 다시 기록하고 생성하세요.
+
+**어떤 클라이언트에서 사용할 수 있나요?** stdio 서버를 실행할 수 있는 MCP 클라이언트라면 사용할 수 있습니다. Claude Code, Cursor, Codex, Claude Desktop 등의 설정은 [클라이언트 안내](docs/generated-server.md)를 참고하세요.
 
 ## 문서
 
@@ -157,7 +115,7 @@ site2api는 각 사이트의 이용 약관 범위 안에서 **본인 계정과 �
 [CLI 레퍼런스](docs/cli.md) ·
 [캡처 스크립트](docs/capture-scripts.md) ·
 [에이전트에서 사용하기](docs/agents.md) ·
-[Verify](docs/verify.md) ·
+[검증](docs/verify.md) ·
 [생성된 서버](docs/generated-server.md) ·
 [작동 방식](docs/how-it-works.md) ·
 [보안 모델](docs/security.md)
@@ -166,15 +124,12 @@ site2api는 각 사이트의 이용 약관 범위 안에서 **본인 계정과 �
 
 ```bash
 pnpm install
-pnpm test          # unit tests + MCP, verify and record end to end against the demo shop
-pnpm demo          # the demo shop on :4317
+pnpm test
+pnpm demo
 pnpm build && node dist/cli.js run http://localhost:4317 --script demo/shop/capture.mjs
 ```
 
-데모는 `demo/motion/`에 있는 [HyperFrames](https://github.com/heygen-com/hyperframes) 프로젝트입니다. 다시 렌더하는 방법은 그 폴더의 README에 있습니다. 다른 에이전트에서 스킬 테스트하기:
-[docs/testing-skill.md](docs/testing-skill.md).
-
-기여를 환영합니다. [CONTRIBUTING.md](CONTRIBUTING.md), [행동 강령](CODE_OF_CONDUCT.md), 취약점 신고는 [SECURITY.md](SECURITY.md), 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 보세요.
+데모 애니메이션은 `demo/motion/`의 [HyperFrames](https://github.com/heygen-com/hyperframes) 프로젝트입니다. 기여 방법과 정책은 [CONTRIBUTING.md](CONTRIBUTING.md), [행동 강령](CODE_OF_CONDUCT.md), [보안 정책](SECURITY.md), [변경 내역](CHANGELOG.md)을 참고하세요.
 
 ## 라이선스
 
