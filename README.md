@@ -41,7 +41,7 @@ A dedicated browser profile opens. Sign in if needed, use each feature you want 
 ```text
 out/
 ├── report.md       # operations and input relationships
-├── verify.json     # pass, warning, failure, or skip for each read operation
+├── verify.json     # pass, warning, failure, error, or skip for each read operation
 └── mcp/
     ├── server.mjs  # bundled MCP server
     ├── tools.json  # tool definitions
@@ -82,10 +82,11 @@ The capture, analysis, verification, and generation stages are described in [How
 ✅ list_orders      HTTP 200
 🟡 search_stories   HTTP 200, but missing: /processingTimingsMS/fetch/total
 ❌ get_product      /price: expected number, got string
+⚠️ get_profile      not authorized: credentials missing or expired
 ⏭  get_invoice      needs input: invoiceId
 ```
 
-`site2api verify out` calls read operations against the live site and compares their responses with the recorded schemas. A **pass** matches; a **warning** means types match but fields seen in every recorded sample are missing; a **failure** indicates an unexpected status or schema mismatch; a **skip** needs an input or credential. Write and login operations are never called by `verify`. `generate --only-verified` includes passing and warning read tools. See [Verify](docs/verify.md).
+`site2api verify out` calls read operations against the live site and compares their responses with the recorded schemas. A **pass** matches; a **warning** means types match but fields seen in every recorded sample are missing; a **failure** indicates an unexpected status or schema mismatch; an **error** indicates a request failure, HTTP 401/403 response, or redirect; a **skip** needs an input or credential. Write and login operations are never called by `verify`. `generate --only-verified` includes passing and warning read tools. See [Verify](docs/verify.md).
 
 ## Security and scope
 

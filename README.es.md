@@ -41,7 +41,7 @@ Se abre un perfil de navegador dedicado. Inicia sesión si hace falta, utiliza c
 ```text
 out/
 ├── report.md       # operaciones y relaciones entre entradas
-├── verify.json     # éxito, aviso, fallo u omisión por operación de lectura
+├── verify.json     # éxito, aviso, fallo, error u omisión por operación de lectura
 └── mcp/
     ├── server.mjs  # servidor con el SDK de MCP incluido
     ├── tools.json  # definiciones de herramientas
@@ -82,10 +82,11 @@ Las etapas completas se describen en [Cómo funciona](docs/how-it-works.md).
 ✅ list_orders      HTTP 200
 🟡 search_stories   HTTP 200, but missing: /processingTimingsMS/fetch/total
 ❌ get_product      /price: expected number, got string
+⚠️ get_profile      not authorized: credentials missing or expired
 ⏭  get_invoice      needs input: invoiceId
 ```
 
-`site2api verify out` llama a las operaciones de lectura en el sitio real y compara las respuestas con los esquemas grabados. **Éxito** significa que coinciden; **aviso**, que los tipos coinciden pero faltan campos presentes en todas las muestras; **fallo**, que hay un estado inesperado o un esquema distinto; **omisión**, que falta una entrada o credencial. `verify` nunca llama a operaciones de escritura ni de inicio de sesión. `generate --only-verified` incluye las herramientas de lectura con éxito o aviso. Consulta [Verificación](docs/verify.md).
+`site2api verify out` llama a las operaciones de lectura en el sitio real y compara las respuestas con los esquemas grabados. **Éxito** significa que coinciden; **aviso**, que los tipos coinciden pero faltan campos presentes en todas las muestras; **fallo**, que hay un estado inesperado o un esquema distinto; **error**, que la petición falla, recibe HTTP 401/403 o se redirige; **omisión**, que falta una entrada o credencial. `verify` nunca llama a operaciones de escritura ni de inicio de sesión. `generate --only-verified` incluye las herramientas de lectura con éxito o aviso. Consulta [Verificación](docs/verify.md).
 
 ## Seguridad y alcance
 

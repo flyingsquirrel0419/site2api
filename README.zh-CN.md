@@ -41,7 +41,7 @@ npx site2api run https://app.example.com
 ```text
 out/
 ├── report.md       # 操作与输入值的关联
-├── verify.json     # 各只读操作的通过、警告、失败或跳过结果
+├── verify.json     # 各只读操作的通过、警告、失败、错误或跳过结果
 └── mcp/
     ├── server.mjs  # 内置 MCP SDK 的服务器
     ├── tools.json  # 工具定义
@@ -82,10 +82,11 @@ Skill 会引导智能体完成录制、命名、验证和生成。此方式使�
 ✅ list_orders      HTTP 200
 🟡 search_stories   HTTP 200, but missing: /processingTimingsMS/fetch/total
 ❌ get_product      /price: expected number, got string
+⚠️ get_profile      not authorized: credentials missing or expired
 ⏭  get_invoice      needs input: invoiceId
 ```
 
-`site2api verify out` 会在实际网站上调用只读操作，并将响应与录制的结构比较。**通过**表示匹配；**警告**表示类型匹配，但缺少录制样本中一直存在的字段；**失败**表示状态码或结构不符合预期；**跳过**表示缺少输入或凭据。`verify` 不会调用写操作和登录操作。`generate --only-verified` 会保留通过或警告状态的只读工具。详见[验证](docs/verify.md)。
+`site2api verify out` 会在实际网站上调用只读操作，并将响应与录制的结构比较。**通过**表示匹配；**警告**表示类型匹配，但缺少录制样本中一直存在的字段；**失败**表示状态码或结构不符合预期；**错误**表示请求失败、HTTP 401/403 响应或重定向；**跳过**表示缺少输入或凭据。`verify` 不会调用写操作和登录操作。`generate --only-verified` 会保留通过或警告状态的只读工具。详见[验证](docs/verify.md)。
 
 ## 安全与使用范围
 

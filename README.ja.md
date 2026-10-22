@@ -41,7 +41,7 @@ npx site2api run https://app.example.com
 ```text
 out/
 ├── report.md       # 操作と入力値の関係
-├── verify.json     # 読み取り操作ごとの合格・警告・失敗・スキップ
+├── verify.json     # 読み取り操作ごとの合格・警告・失敗・エラー・スキップ
 └── mcp/
     ├── server.mjs  # MCP SDK を同梱したサーバー
     ├── tools.json  # ツール定義
@@ -82,10 +82,11 @@ claude mcp add app -e SITE2API_COOKIE='<Cookie header>' -- node /absolute/path/t
 ✅ list_orders      HTTP 200
 🟡 search_stories   HTTP 200, but missing: /processingTimingsMS/fetch/total
 ❌ get_product      /price: expected number, got string
+⚠️ get_profile      not authorized: credentials missing or expired
 ⏭  get_invoice      needs input: invoiceId
 ```
 
-`site2api verify out` は読み取り操作を実サイトで呼び出し、レスポンスを記録したスキーマと比較します。**合格**は一致、**警告**は型が一致する一方で全サンプルに存在したフィールドが欠けている状態、**失敗**は想定外のステータスやスキーマの不一致、**スキップ**は入力値または認証情報が足りない状態です。`verify` は書き込み操作とログイン操作を呼び出しません。`generate --only-verified` は合格・警告の読み取りツールを含めます。詳しくは [検証](docs/verify.md) を参照してください。
+`site2api verify out` は読み取り操作を実サイトで呼び出し、レスポンスを記録したスキーマと比較します。**合格**は一致、**警告**は型が一致する一方で全サンプルに存在したフィールドが欠けている状態、**失敗**は想定外のステータスやスキーマの不一致、**エラー**はリクエストの失敗、HTTP 401/403 レスポンス、またはリダイレクトが発生した状態、**スキップ**は入力値または認証情報が足りない状態です。`verify` は書き込み操作とログイン操作を呼び出しません。`generate --only-verified` は合格・警告の読み取りツールを含めます。詳しくは [検証](docs/verify.md) を参照してください。
 
 ## セキュリティと利用範囲
 

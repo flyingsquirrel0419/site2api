@@ -41,7 +41,7 @@ npx site2api run https://app.example.com
 ```text
 out/
 ├── report.md       # 작업과 입력값의 관계
-├── verify.json     # 읽기 작업별 통과·경고·실패·건너뜀
+├── verify.json     # 읽기 작업별 통과·경고·실패·오류·건너뜀
 └── mcp/
     ├── server.mjs  # MCP SDK가 포함된 서버
     ├── tools.json  # 도구 정의
@@ -82,10 +82,11 @@ claude mcp add app -e SITE2API_COOKIE='<Cookie header>' -- node /absolute/path/t
 ✅ list_orders      HTTP 200
 🟡 search_stories   HTTP 200, but missing: /processingTimingsMS/fetch/total
 ❌ get_product      /price: expected number, got string
+⚠️ get_profile      not authorized: credentials missing or expired
 ⏭  get_invoice      needs input: invoiceId
 ```
 
-`site2api verify out`은 읽기 작업을 실제 사이트에 호출하고 응답을 기록된 스키마와 비교합니다. **통과**는 일치, **경고**는 타입은 같지만 모든 기록 샘플에 있던 필드가 빠진 상태, **실패**는 예상 밖 상태 코드나 스키마 불일치, **건너뜀**은 입력값 또는 자격 증명이 필요한 상태입니다. `verify`는 쓰기와 로그인 작업을 호출하지 않습니다. `generate --only-verified`는 통과·경고 상태의 읽기 도구를 포함합니다. 자세한 내용은 [검증 안내](docs/verify.md)를 참고하세요.
+`site2api verify out`은 읽기 작업을 실제 사이트에 호출하고 응답을 기록된 스키마와 비교합니다. **통과**는 일치, **경고**는 타입은 같지만 모든 기록 샘플에 있던 필드가 빠진 상태, **실패**는 예상 밖 상태 코드나 스키마 불일치, **오류**는 요청 실패, HTTP 401/403 응답 또는 리디렉션이 발생한 상태, **건너뜀**은 입력값 또는 자격 증명이 필요한 상태입니다. `verify`는 쓰기와 로그인 작업을 호출하지 않습니다. `generate --only-verified`는 통과·경고 상태의 읽기 도구를 포함합니다. 자세한 내용은 [검증 안내](docs/verify.md)를 참고하세요.
 
 ## 보안과 사용 범위
 
