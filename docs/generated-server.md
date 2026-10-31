@@ -35,7 +35,8 @@ put the value in your local copy of the config.
 | `SITE2API_BEARER` | A bearer token, for sites that send `Authorization: Bearer …` |
 | `SITE2API_KEY_<NAME>` | An API key the site sends in a header or query parameter. `<NAME>` is the header or parameter name in upper snake case, e.g. `x-algolia-api-key` → `SITE2API_KEY_X_ALGOLIA_API_KEY`. The README lists the ones your server needs |
 | `SITE2API_BASE_URL` | Call another origin than the recorded one (staging, a local port) |
-| `SITE2API_RATE` | Max requests per second (default 1) |
+| `SITE2API_RATE` | Max requests per second (default 1). A value that is not a number >= 0 is ignored and the default is used |
+| `SITE2API_TOOLS` | Not needed. If set, it must be the `tools.json` next to this `server.mjs`. Another path is refused, so a swapped file cannot receive the credentials in this process |
 | `SITE2API_MAX_BYTES` | Longest response text returned to the agent (default 20000); longer ones are cut with a note |
 
 The server reads credentials only from its environment and never writes them anywhere.

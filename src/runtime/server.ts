@@ -7,11 +7,12 @@
 //   SITE2API_BASE_URL  Replace the recorded origin (e.g. a staging host or a local port)
 //   SITE2API_RATE      Max requests per second (default 1)
 //   SITE2API_MAX_BYTES Response text limit per call (default 20000)
-//   SITE2API_TOOLS     Path to tools.json (default: next to this file)
+//   SITE2API_TOOLS     Must be the tools.json next to this file, if set at all
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ToolDef, ToolsFile } from "../generate/types.js";
 import { HttpClient, safeJson, type Args, type HttpResponse } from "./http.js";
@@ -22,7 +23,15 @@ declare const __SITE2API_VERSION__: string;
 type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 
 const env = process.env;
-const toolsPath = env.SITE2API_TOOLS ?? fileURLToPath(new URL("./tools.json", import.meta.url));
+// Credentials in this process belong to the tools.json written next to this file. Another path
+// could name those env vars and point the requests at a different host.
+const toolsPath = fileURLToPath(new URL("./tools.json", import.meta.url));
+if (env.SITE2API_TOOLS !== undefined && env.SITE2API_TOOLS !== "" && resolve(env.SITE2API_TOOLS) !== resolve(toolsPath)) {
+  console.error(
+    `site2api: refusing SITE2API_TOOLS=${env.SITE2API_TOOLS}. This server only reads ${toolsPath}, so a swapped file cannot receive this process's credentials.`,
+  );
+  process.exit(1);
+}
 const file: ToolsFile = JSON.parse(readFileSync(toolsPath, "utf8"));
 const maxBytes = numberEnv("SITE2API_MAX_BYTES", 20000, 1);
 

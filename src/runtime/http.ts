@@ -38,11 +38,20 @@ export interface HttpClientOptions {
   maxResponseBytes?: number;
 }
 
+/** `--rate` and `HttpClient` share this. `0` turns the limit off; anything else must be finite and >= 0. */
+export function parseRate(raw: string | number, label = "rate"): number {
+  const value = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be a finite number >= 0, not "${raw}"`);
+  return value;
+}
+
 export class HttpClient {
   private csrfToken: string | undefined;
   private nextSlot = 0;
 
-  constructor(private readonly options: HttpClientOptions) {}
+  constructor(private readonly options: HttpClientOptions) {
+    parseRate(options.rate);
+  }
 
   /** Adds API key values (verify learns them per operation, from env or the recording). */
   setApiKeys(apiKeys: Record<string, string>): void {
@@ -178,10 +187,13 @@ const NETWORK_REASONS: Record<string, string> = {
   DEPTH_ZERO_SELF_SIGNED_CERT: "self-signed TLS certificate",
 };
 
-/** A path argument fills one segment: `.` and `..` would make the URL point somewhere else. */
+/**
+ * A path argument fills one segment. `.`, `..`, a slash, or an encoded slash would make the URL
+ * point somewhere else on servers that decode `%2F` and then normalize `.`.
+ */
 function pathSegment(name: string, value: unknown): string {
   const text = String(value);
-  if (text === "" || text === "." || text === "..") {
+  if (text === "" || text === "." || text.includes("/") || text.includes("\\") || text.includes("..") || /%(?:2e|2f)/i.test(text)) {
     throw new Error(`input ${name} cannot be "${text}": it is part of the URL path`);
   }
   return encodeURIComponent(text);

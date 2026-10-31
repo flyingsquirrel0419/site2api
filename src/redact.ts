@@ -27,15 +27,23 @@ export function redactValue(value: unknown, key = "", sensitive = false): unknow
   return value;
 }
 
-// Values shorter than this are too generic to search for safely ("1", "true").
+// Values shorter than this are too generic to search for safely ("1", "true", "dark").
+// A shorter value is still tracked when it looks like a token (a digit, or mixed case): "abc12".
 const MIN_SECRET_LENGTH = 6;
+const MIN_OPAQUE_LENGTH = 4;
+
+export function isTrackableSecret(value: string): boolean {
+  if (value.length >= MIN_SECRET_LENGTH) return true;
+  if (value.length < MIN_OPAQUE_LENGTH) return false;
+  return /\d/.test(value) || (/[a-z]/.test(value) && /[A-Z]/.test(value));
+}
 
 export function collectSecrets(exchanges: Exchange[]): string[] {
   const secrets = new Set<string>();
   const add = (v: string | undefined) => {
-    if (!v || v.length < MIN_SECRET_LENGTH) return;
+    if (!v || !isTrackableSecret(v)) return;
     // Also the forms it may be echoed in: "a%2Bb" in a cookie comes back as "a+b".
-    for (const form of [v, safeDecode(v), encodeURIComponent(v)]) if (form.length >= MIN_SECRET_LENGTH) secrets.add(form);
+    for (const form of [v, safeDecode(v), encodeURIComponent(v)]) if (form.length >= MIN_OPAQUE_LENGTH) secrets.add(form);
   };
   const addSensitiveFields = (value: unknown, key = "", sensitive = false) => {
     const secret = sensitive || SENSITIVE_KEY.test(key);
@@ -127,13 +135,13 @@ export function assertNoFingerprintedSecrets(output: string, fp: SecretFingerpri
 function candidates(text: string): string[] {
   const out = new Set<string>();
   const addForms = (piece: string) => {
-    if (piece.length < MIN_SECRET_LENGTH) return;
+    if (!isTrackableSecret(piece)) return;
     out.add(piece);
     out.add(piece.replace(/[.:!?]+$/, ""));
     out.add(safeDecode(piece));
   };
   for (const token of text.match(/[^\s"'`,;<>(){}\[\]]+/g) ?? []) {
-    if (token.length < MIN_SECRET_LENGTH) continue;
+    if (token.length < MIN_OPAQUE_LENGTH) continue;
     addForms(token);
     // "sid=abc…", "?sid=abc&x=1", "/s/abc/x", "sid:abc" pieces
     const eq = token.indexOf("=");

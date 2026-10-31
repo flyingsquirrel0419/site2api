@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -97,6 +97,20 @@ describe("generate", () => {
   it("reports annotation errors for the agent to fix", async () => {
     const dir = await outDir({ version: 1, operations: { nope: {} } });
     await expect(generate(dir, { runtimePath })).rejects.toThrow(AnnotationsError);
+  });
+
+  it("refuses to generate when the fingerprint file is missing", async () => {
+    const dir = await outDir({ version: 1, site: { name: "Demo Shop" } });
+    await rm(join(dir, SECRETS_FILE));
+    await expect(generate(dir, { runtimePath })).rejects.toThrow(/secrets\.json/);
+  });
+
+  it("skips the fingerprint check only when asked", async () => {
+    const dir = await outDir({ version: 1, site: { name: "Demo Shop" } });
+    await rm(join(dir, SECRETS_FILE));
+    const result = await generate(dir, { runtimePath, allowMissingFingerprint: true });
+    expect(result.warnings.some((w) => w.includes("could not be checked"))).toBe(true);
+    expect(await readFile(join(dir, "mcp", "tools.json"), "utf8")).toContain("list_orders");
   });
 
   it("refuses to write a credential the agent pasted into annotations", async () => {

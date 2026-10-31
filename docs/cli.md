@@ -36,7 +36,8 @@ the session cookies captured at the end of the recording, in memory only.
 
 Open a browser, record while the site is used, then analyze the traffic (same output as
 `from-har`). Ends on Enter in the terminal, when the last tab closes, when a script returns, or at
-the request limit. Takes `-o`, `--script`, `--headed`, `--max-requests`, `--include-origin`,
+the request limit. Without a terminal, pass `--script`; otherwise the command exits instead of
+waiting forever. Takes `-o`, `--script`, `--headed`, `--max-requests`, `--include-origin`,
 `--profile-dir` and `--discard-har` as above.
 
 The recording is kept at `out/.site2api/capture.har`. It contains your session; do not share or
@@ -78,8 +79,8 @@ Call every read-only operation on the live site and check responses against the 
 |---|---|
 | `--base-url <url>` | Call this origin instead of the recorded one |
 | `--input <op.name=value...>` | Value for a required input, e.g. `get_product.productId=2` |
-| `--har <file>` | Capture to replay input values from (default: the one `from-har` or `record` used) |
-| `--rate <n>` | Max requests per second (default 1) |
+| `--har <file>` | Capture to replay input values from (default: the one `from-har` or `record` used). Verify stops if this file cannot be read |
+| `--rate <n>` | Max requests per second (default 1). Must be a finite number >= 0; `0` turns the limit off |
 | `--profile` | Use the persistent cookies of the record browser profile |
 | `--profile-dir <dir>` | Browser profile for `--profile` |
 
@@ -95,7 +96,9 @@ Generate the MCP server in `<dir>/mcp`.
 | `--allow-writes` | Include tools that change data (they still require `confirm: true`) |
 | `--only-verified` | Keep only read tools that passed `verify` (🟡 warnings count as passing) |
 | `--name <name>` | Server name |
+| `--unsafe-no-fingerprint` | Generate even if `.site2api/secrets.json` is missing. Skips the credential check |
 
+Needs `.site2api/secrets.json` from `from-har` or `record`, unless `--unsafe-no-fingerprint` is set.
 Exit code 2 means `annotations.json` is invalid; the errors name each field to fix.
 
 ## Environment
@@ -106,7 +109,8 @@ Exit code 2 means `annotations.json` is invalid; the errors name each field to f
 | `SITE2API_BEARER` | verify, server | Bearer token |
 | `SITE2API_KEY_<NAME>` | verify, server | API key sent in a header or query parameter, e.g. `SITE2API_KEY_X_API_KEY` |
 | `SITE2API_BASE_URL` | server | Replace the recorded origin |
-| `SITE2API_RATE` | server | Max requests per second (default 1) |
+| `SITE2API_RATE` | server | Max requests per second (default 1). A value that is not a number >= 0 is ignored |
+| `SITE2API_TOOLS` | server | Must be the `tools.json` next to `server.mjs`, if set. Any other path is refused |
 | `SITE2API_MAX_BYTES` | server | Response text limit per call (default 20000) |
 | `SITE2API_PROFILE_DIR` | record, verify | Default browser profile |
 | `ANTHROPIC_API_KEY` | infer | Claude |
