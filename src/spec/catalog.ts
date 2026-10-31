@@ -182,24 +182,29 @@ function authOf(security: Json[] | undefined, schemes: Json, csrfHeader: string 
   return result;
 }
 
-// Search APIs are often POST (a long query or filters in the body), but they only read. A POST
-// whose last path segment names a lookup is treated as a read; anything else that is not GET
-// stays a write until an agent or a person says otherwise.
+// Search APIs are often POST, but the path is not proof that the call only reads. A POST whose
+// last segment names a lookup stays a write until an annotation says `read`. Anything else that
+// is not GET stays a write, and an annotation cannot promote it.
 const LOOKUP_SEGMENT = /^(?:query|queries|search|searches|find|lookup|autocomplete|suggest|suggestions|typeahead)$/i;
+
+function isLookupPost(op: CatalogOperation): boolean {
+  if (op.providesAuth || op.graphql || op.method !== "POST") return false;
+  const last = op.path.split("/").filter(Boolean).at(-1) ?? "";
+  return LOOKUP_SEGMENT.test(last);
+}
 
 /** Default classification before the agent weighs in. */
 export function defaultKind(op: CatalogOperation): "read" | "write" | "auth" {
   if (op.providesAuth) return "auth";
   if (!op.writes) return "read";
-  const last = op.path.split("/").filter(Boolean).at(-1) ?? "";
-  return op.method === "POST" && !op.graphql && LOOKUP_SEGMENT.test(last) ? "read" : "write";
+  return "write";
 }
 
 /**
- * The kind an operation gets, given what annotations asked for. Annotations are written by an
- * agent that read site-derived text, so they may make an operation safer but never riskier:
- * "read" drops the confirm step and lets verify call it live, so it is only accepted where the
- * heuristic agrees or the method cannot change data; login operations always stay "auth".
+ * The kind an operation gets, given what annotations asked for. "read" drops the confirm step
+ * and lets verify call it live. That is accepted when the method does not write, and for a POST
+ * whose path looks like a lookup (the default for those is still write). Other writes, GraphQL
+ * mutations, and login operations cannot be marked read.
  */
 export function effectiveKind(op: CatalogOperation, requested?: "read" | "write" | "auth"): "read" | "write" | "auth" {
   const heuristic = defaultKind(op);
@@ -209,7 +214,7 @@ export function effectiveKind(op: CatalogOperation, requested?: "read" | "write"
 }
 
 export function canBeRead(op: CatalogOperation): boolean {
-  if (defaultKind(op) === "read") return true;
-  if (op.providesAuth || op.graphql) return false; // GraphQL mutations were already "write"
-  return op.method === "GET" || op.method === "HEAD";
+  if (op.providesAuth || (op.graphql && op.graphql.operationType !== "query")) return false;
+  if (!op.writes) return true;
+  return isLookupPost(op);
 }

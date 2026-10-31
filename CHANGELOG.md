@@ -7,6 +7,27 @@ how under **Changed**. [Versioning](docs/versioning.md) has the details.
 
 ## [Unreleased]
 
+### Security
+
+- A POST whose path looks like a lookup (`/search`, `/query`, `/find`, …) stays a write until
+  `annotations.json` sets `kind` to `read`. `verify` no longer calls it on its own, and
+  `generate` no longer exposes it without `--allow-writes`. Set `kind` to `read` when that POST
+  only fetches data.
+- `verify --rate` must be a finite number >= 0. A typo no longer turns the limit off. `0` still
+  means no limit. The server's `SITE2API_RATE` already ignored bad values.
+- `record` without `--script` exits when stdin is not a terminal, instead of waiting forever.
+- `verify` stops when the capture cannot be read, instead of calling the site without recorded
+  inputs.
+- `record` still asks Playwright to flush the HAR after the browser closes itself, and waits
+  briefly for the file.
+- Path inputs reject `/`, `\`, `..`, and `%2e` / `%2f`, so one parameter cannot retarget the URL.
+- Credential values of 4 or 5 characters are tracked when they contain a digit or mixed case
+  (`abc12`). Plain words that short (`dark`, `true`) are still ignored.
+- `generate`, `verify`, and `infer` refuse to run without `.site2api/secrets.json`.
+  `generate --unsafe-no-fingerprint` is the explicit bypass.
+- The generated server only reads the `tools.json` next to `server.mjs`. `SITE2API_TOOLS` cannot
+  point at another file.
+
 ## [1.0.0] - 2026-10-22
 
 The first public version.

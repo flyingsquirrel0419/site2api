@@ -1,7 +1,7 @@
 // context.md: a compact, value-free digest of the spec for the user's agent to read before
 // writing annotations.json. Kept short on purpose — it has to fit comfortably in any agent's context.
 import type { Schema } from "../normalize/schema.js";
-import { defaultKind, type Catalog, type CatalogOperation } from "../spec/catalog.js";
+import { canBeRead, defaultKind, type Catalog, type CatalogOperation } from "../spec/catalog.js";
 
 const MAX_DEPTH = 3;
 const MAX_PROPS = 12;
@@ -53,6 +53,9 @@ function renderOperation(op: CatalogOperation, catalog: Catalog): string[] {
     : `### ${op.id} — ${op.method} ${op.path}`;
   const lines = [head];
   lines.push(`- default kind: ${defaultKind(op)}; samples: ${op.samples}; auth: ${authText(op)}`);
+  if (defaultKind(op) === "write" && canBeRead(op)) {
+    lines.push('- kind: this POST looks like a lookup, but the default is write. Set kind to "read" only if it only fetches data; verify will then call it, with no confirm step.');
+  }
   if (op.inputs.length > 0) {
     lines.push(`- inputs: ${op.inputs.map((i) => `${i.name}${i.required ? "" : "?"}: ${summarize(i.schema, 1)} (${i.in})`).join("; ")}`);
   }

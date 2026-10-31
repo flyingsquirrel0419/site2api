@@ -64,6 +64,9 @@ TypeScript-like summary), auth and links, with no values. An agent (with the ski
 (`infer`) turns it into `annotations.json`, which is validated against the spec: unknown
 operation ids, duplicate tool names and unknown input names are errors that name the fix.
 
+A POST to a lookup path (`/search`, `/query`, `/find`, …) is a write until the annotation sets
+`kind` to `read`. Other writes cannot be marked read.
+
 ## 5. Verify
 
 Read tools are called in dependency order, so linked inputs come from real responses. Responses are

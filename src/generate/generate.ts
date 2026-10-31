@@ -17,6 +17,8 @@ export interface GenerateOptions {
   name?: string;
   /** Path of the bundled runtime (dist/runtime/server.mjs). */
   runtimePath: string;
+  /** Write the server even though `.site2api/secrets.json` is missing. The leak check is skipped. */
+  allowMissingFingerprint?: boolean;
 }
 
 export interface GenerateResult {
@@ -66,8 +68,12 @@ export async function generate(dir: string, options: GenerateOptions): Promise<G
     assertNoFingerprintedSecrets(toolsJson, fp, "tools.json");
     assertNoFingerprintedSecrets(readme, fp, "README.md");
     assertNoFingerprintedSecrets(mcpJson, fp, "mcp.json");
-  } else {
+  } else if (options.allowMissingFingerprint) {
     warnings.push(`No ${SECRETS_FILE} found, so the output could not be checked for leaked credentials.`);
+  } else {
+    throw new Error(
+      `Refusing to generate: ${SECRETS_FILE} is missing, so the output cannot be checked for leaked credentials. Run from-har or record in this directory first, or pass --unsafe-no-fingerprint.`,
+    );
   }
   if (tools.tools.length === 0) warnings.push("No tools were generated. See `skipped` in tools.json.");
 

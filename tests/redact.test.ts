@@ -45,7 +45,23 @@ describe("collectSecrets", () => {
     for (const s of ["qs-secret-1", "cookie-secret-1", "bearer-secret-1", "pw-secret-1", "cookie-secret-2", "csrf-secret-1"]) {
       expect(secrets).toContain(s);
     }
-    expect(secrets).not.toContain("dark"); // too short to search safely
+    expect(secrets).not.toContain("dark"); // too short, and not token-shaped, to search safely
+  });
+
+  it("tracks a short token-shaped cookie value and ignores a short word", () => {
+    const secrets = collectSecrets(
+      parseHar(
+        har([
+          {
+            url: "https://shop.com/api/me",
+            requestHeaders: { cookie: "sid=abc12; theme=dark" },
+            responseBody: { note: "abc12" },
+          },
+        ]),
+      ),
+    );
+    expect(secrets).toContain("abc12");
+    expect(secrets).not.toContain("dark");
   });
 });
 
@@ -54,6 +70,18 @@ describe("analyzeHar leak gate", () => {
     // The session token is echoed in an innocent-looking field, and --examples would copy it out.
     const text = har([
       { url: "https://shop.com/api/session", responseBody: { sessionToken: "tok-9f8e7d6c", echo: "tok-9f8e7d6c" } },
+    ]);
+    expect(() => analyzeHar(text, { examples: true })).toThrow(SecretLeakError);
+    expect(() => analyzeHar(text, { examples: false })).not.toThrow();
+  });
+
+  it("refuses an example that echoes a 5-character token cookie", () => {
+    const text = har([
+      {
+        url: "https://shop.com/api/me",
+        requestHeaders: { cookie: "sid=abc12" },
+        responseBody: { note: "abc12" },
+      },
     ]);
     expect(() => analyzeHar(text, { examples: true })).toThrow(SecretLeakError);
     expect(() => analyzeHar(text, { examples: false })).not.toThrow();

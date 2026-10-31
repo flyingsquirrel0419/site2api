@@ -2,7 +2,7 @@
 // used, either by a person in a visible window or by a capture script (headless, for servers, CI
 // and agents). Either way it is a plain browser: no stealth, no bot-detection evasion, and a
 // script is held to a request budget and a human pace.
-import { chmod, mkdir } from "node:fs/promises";
+import { access, chmod, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -101,6 +101,14 @@ async function launch(
   }
 }
 
+/** Interactive `record` waits on Enter. Without a terminal or a script, that wait never ends. */
+export function assertTerminalRecording(isTTY: boolean, hasScript: boolean): void {
+  if (hasScript || isTTY) return;
+  throw new Error(
+    "No terminal is attached, so record cannot wait for Enter. Pass --script to drive the browser, or run this in a terminal (closing the tab also ends a recording).",
+  );
+}
+
 export async function record(options: RecordOptions): Promise<RecordResult> {
   const context = await launch(options.profileDir ?? DEFAULT_PROFILE_DIR, {
     headless: options.headless ?? false,
@@ -155,13 +163,37 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
 
   let cookies: StoredCookie[] = [];
   if (!browserClosed) {
-    cookies = await context.cookies();
-    await context.close(); // flushes the HAR; a script still running fails from here on
+    try {
+      cookies = await context.cookies();
+    } catch {
+      // The window already went away.
+    }
   }
+  // close() flushes the HAR. If the browser closed itself, Playwright is flushing as part of
+  // that close; calling it again throws, and the file can appear a moment later.
+  try {
+    await context.close();
+  } catch {
+    // already closed
+  }
+  await waitForHar(options.harPath);
   // The HAR holds the session; Playwright writes it with the default umask.
   await chmod(options.harPath, 0o600).catch(() => {});
   if (endedBy !== "script") scriptError = undefined; // errors after we closed the browser are expected
   return { cookieHeader: cookieHeaderFor(cookies, options.url), cookies, endedBy, requests, ...(scriptError && { scriptError }) };
+}
+
+/** Playwright writes the HAR during close, which can finish just after the close event. */
+async function waitForHar(harPath: string): Promise<void> {
+  const deadline = Date.now() + 2000;
+  while (Date.now() < deadline) {
+    try {
+      await access(harPath);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
 }
 
 /** Persistent cookies stored in the dedicated profile (session cookies do not survive a restart). */

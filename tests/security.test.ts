@@ -1,7 +1,11 @@
 // Regression tests for the security audit: credentials that must not reach any output, and
 // what the runtime must refuse to send. Every value here is made up.
+import { spawn } from "node:child_process";
 import express from "express";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { HttpCall, ToolAuth } from "../src/generate/types.js";
 import { buildTools } from "../src/generate/tools.js";
@@ -11,7 +15,8 @@ import { OpenAiCompatibleProvider } from "../src/infer/llm/openai.js";
 import { siteOf } from "../src/normalize/filter.js";
 import { analyzeHar } from "../src/pipeline.js";
 import { assertNoFingerprintedSecrets } from "../src/redact.js";
-import { HttpClient } from "../src/runtime/http.js";
+import { HttpClient, parseRate } from "../src/runtime/http.js";
+import { loadRecordedOperations } from "../src/verify/recorded.js";
 import { readCatalog } from "../src/spec/catalog.js";
 import { har, type EntrySpec } from "./helpers.js";
 
@@ -111,9 +116,11 @@ describe("the runtime HTTP client", () => {
     const { base, close } = await serve((req, res) => void (seen.push(req.path), res.json({})));
     try {
       const client = new HttpClient({ recordedBaseUrl: base, rate: 0, credentials: {} });
-      for (const id of ["..", ".", ""]) await expect(client.call(call(base), { id }, noAuth)).rejects.toThrow(/part of the URL path/);
-      await client.call(call(base), { id: "a/../b" }, noAuth);
-      expect(seen).toEqual(["/users/a%2F..%2Fb/posts"]);
+      for (const id of ["..", ".", "", "a/../b", "a\\..\\b", "%2e%2e", "%2F"]) {
+        await expect(client.call(call(base), { id }, noAuth)).rejects.toThrow(/part of the URL path/);
+      }
+      await client.call(call(base), { id: "ok" }, noAuth);
+      expect(seen).toEqual(["/users/ok/posts"]);
     } finally {
       close();
     }
@@ -146,6 +153,35 @@ describe("the runtime HTTP client", () => {
     }
   });
 
+  it("rejects a rate that would silently disable the limit", () => {
+    expect(() => parseRate("nope", "--rate")).toThrow(/--rate/);
+    expect(() => parseRate("-5", "--rate")).toThrow(/--rate/);
+    expect(parseRate("0", "--rate")).toBe(0);
+    expect(() => new HttpClient({ recordedBaseUrl: "https://app.example.com", rate: Number("nope"), credentials: {} })).toThrow(/rate/);
+  });
+
+  it("refuses SITE2API_TOOLS that is not the tools.json beside the server", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "site2api-tools-"));
+    const tools = join(dir, "tools.json");
+    await writeFile(tools, "{}\n");
+    const serverPath = new URL("../dist/runtime/server.mjs", import.meta.url).pathname;
+    const output = await new Promise<{ code: number | null; text: string }>((resolve) => {
+      const child = spawn(process.execPath, [serverPath], {
+        env: { PATH: process.env.PATH ?? "", SITE2API_TOOLS: tools },
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      let text = "";
+      child.stderr.on("data", (b) => (text += b));
+      const killer = setTimeout(() => child.kill(), 3000);
+      child.on("exit", (code) => {
+        clearTimeout(killer);
+        resolve({ code, text });
+      });
+    });
+    expect(output.code).toBe(1);
+    expect(output.text).toContain("refusing SITE2API_TOOLS");
+  });
+
   it("cuts off huge bodies and gives up on servers that never answer", async () => {
     const { base, close } = await serve((req, res) => {
       if (req.path.startsWith("/users/big")) return void res.send("x".repeat(5000));
@@ -168,6 +204,14 @@ it("treats subdomains of shared hosting as separate sites", () => {
   expect(siteOf("www.alice.github.io")).toBe("alice.github.io");
   expect(siteOf("api.example.com")).toBe("example.com");
   expect(siteOf("shop.example.co.kr")).toBe("example.co.kr");
+});
+
+it("stops verify when the capture cannot be read", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "site2api-har-"));
+  const bad = join(dir, "broken.har");
+  await writeFile(bad, "{ this is not a har");
+  await expect(loadRecordedOperations(bad)).rejects.toThrow(/Verify stopped/);
+  await expect(loadRecordedOperations(join(dir, "missing.har"))).rejects.toThrow(/Verify stopped/);
 });
 
 it("refuses to send the LLM key over plain http, except to localhost", () => {

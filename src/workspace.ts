@@ -54,6 +54,17 @@ export async function loadFingerprint(dir: string): Promise<SecretFingerprint | 
   return text === undefined ? undefined : (JSON.parse(text) as SecretFingerprint);
 }
 
+/** infer and verify have no bypass: without the fingerprint file they would skip the leak check. */
+export async function requireFingerprint(dir: string, action: string): Promise<SecretFingerprint> {
+  const fp = await loadFingerprint(dir);
+  if (!fp) {
+    throw new Error(
+      `Refusing to ${action}: ${SECRETS_FILE} is missing, so output cannot be checked for leaked credentials. Run from-har or record in this directory first.`,
+    );
+  }
+  return fp;
+}
+
 /** The capture this directory was built from: the recorded HAR, or the path from-har remembered. */
 export async function findCapture(dir: string): Promise<string | undefined> {
   if ((await readOptional(join(dir, CAPTURE_FILE))) !== undefined) return join(dir, CAPTURE_FILE);

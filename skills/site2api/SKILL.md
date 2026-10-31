@@ -123,7 +123,8 @@ For each operation, decide:
 - `kind`:
   - `read`: only fetches data.
   - `write`: creates, changes, deletes, sends, buys, or posts anything. When in doubt, choose
-    `write`.
+    `write`. A POST whose path looks like a lookup (`search`, `query`, `find`, …) defaults to
+    `write`. Set `read` only when the context shows it only fetches; `verify` will then call it.
   - `auth`: login, logout, refreshing a session, or returning a token. These never become tools.
 - `include: false` for noise: telemetry, feature flags, health checks, ads.
 - `site`: a human name and a one-sentence description of the site.

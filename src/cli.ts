@@ -4,7 +4,7 @@ import { access, chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { createInterface } from "node:readline";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cookieHeaderFor, cookiesFromProfile, DEFAULT_PROFILE_DIR, loadCaptureScript, record, type StoredCookie } from "./capture/record.js";
+import { assertTerminalRecording, cookieHeaderFor, cookiesFromProfile, DEFAULT_PROFILE_DIR, loadCaptureScript, record, type StoredCookie } from "./capture/record.js";
 import { generate } from "./generate/generate.js";
 import { annotationsJsonSchema } from "./infer/annotations.js";
 import { renderContext } from "./infer/context.js";
@@ -12,6 +12,8 @@ import { inferAnnotations, providerFromEnv, type ProviderName } from "./infer/ll
 import { LlmError } from "./infer/llm/provider.js";
 import { analyzeHar } from "./pipeline.js";
 import { assertNoFingerprintedSecrets } from "./redact.js";
+import { parseRate } from "./runtime/http.js";
+import { loadRecordedOperations } from "./verify/recorded.js";
 import { verify, type VerifyReport } from "./verify/verify.js";
 import {
   ANNOTATIONS_FILE,
@@ -20,8 +22,8 @@ import {
   findCapture,
   loadAnnotations,
   loadCatalog,
-  loadFingerprint,
   readOptional,
+  requireFingerprint,
   SECRETS_FILE,
   SOURCE_FILE,
   VERIFY_FILE,
@@ -111,6 +113,7 @@ interface RecordCliOptions {
 
 /** Returns the profile's cookies at the end of the recording, in memory only. */
 async function recordToDir(url: string, opts: RecordCliOptions): Promise<StoredCookie[]> {
+  assertTerminalRecording(!!process.stdin.isTTY, !!opts.script);
   const harPath = join(opts.out, CAPTURE_FILE);
   const maxRequests = Number(opts.maxRequests ?? 60);
   if (!Number.isInteger(maxRequests) || maxRequests < 1) throw new Error(`--max-requests must be a whole number of at least 1, not "${opts.maxRequests}"`);
@@ -162,7 +165,7 @@ async function recordToDir(url: string, opts: RecordCliOptions): Promise<StoredC
 }
 
 function pressEnter(): Promise<void> {
-  if (!process.stdin.isTTY) return new Promise(() => {});
+  assertTerminalRecording(!!process.stdin.isTTY, false);
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin });
     rl.once("line", () => {
@@ -211,14 +214,14 @@ async function inferDir(dir: string, opts: InferCliOptions) {
   }
   const catalog = await loadCatalog(dir);
   const context = renderContext(catalog);
-  const fp = await loadFingerprint(dir);
-  if (fp) assertNoFingerprintedSecrets(context, fp, "the LLM request");
+  const fp = await requireFingerprint(dir, "infer");
+  assertNoFingerprintedSecrets(context, fp, "the LLM request");
 
   const provider = providerFromEnv(opts.provider as ProviderName | undefined, opts.model);
   console.log(`annotating ${catalog.operations.length} operations with ${provider.label}…`);
   const { annotations, attempts } = await inferAnnotations(catalog, provider, context);
   const text = JSON.stringify(annotations, null, 2) + "\n";
-  if (fp) assertNoFingerprintedSecrets(text, fp, ANNOTATIONS_FILE);
+  assertNoFingerprintedSecrets(text, fp, ANNOTATIONS_FILE);
   await writeFile(join(dir, ANNOTATIONS_FILE), text);
 
   for (const [id, a] of Object.entries(annotations.operations)) {
@@ -235,6 +238,7 @@ program
   .option("--allow-writes", "include tools that change data (they still require confirm: true)", false)
   .option("--only-verified", "keep only read tools that passed `site2api verify` (warnings count as passing)", false)
   .option("--name <name>", "server name (default: from annotations, else the recorded host)")
+  .option("--unsafe-no-fingerprint", "generate even if .site2api/secrets.json is missing (skips the credential check)", false)
   .action(async (dir: string, opts: GenerateCliOptions) => {
     await generateDir(dir, opts);
   });
@@ -243,6 +247,7 @@ interface GenerateCliOptions {
   allowWrites: boolean;
   onlyVerified: boolean;
   name?: string;
+  unsafeNoFingerprint?: boolean;
   /** Set by `run`, which already said that annotation was skipped. */
   quietAnnotations?: boolean;
 }
@@ -250,7 +255,13 @@ interface GenerateCliOptions {
 async function generateDir(dir: string, opts: GenerateCliOptions) {
   const runtimePath = fileURLToPath(new URL("./runtime/server.mjs", import.meta.url));
   try {
-    const result = await generate(dir, { allowWrites: opts.allowWrites, onlyVerified: opts.onlyVerified, name: opts.name, runtimePath });
+    const result = await generate(dir, {
+      allowWrites: opts.allowWrites,
+      onlyVerified: opts.onlyVerified,
+      name: opts.name,
+      runtimePath,
+      allowMissingFingerprint: opts.unsafeNoFingerprint,
+    });
     for (const w of result.warnings) {
       if (opts.quietAnnotations && w.startsWith("No annotations.json")) continue;
       console.warn(`warning: ${w}`);
@@ -295,17 +306,12 @@ interface VerifyCliOptions {
 }
 
 async function verifyDir(dir: string, opts: VerifyCliOptions): Promise<VerifyReport> {
+  const rate = parseRate(opts.rate, "--rate");
+  const fp = await requireFingerprint(dir, "verify");
   const catalog = await loadCatalog(dir);
   const annotations = (await loadAnnotations(dir, catalog)) ?? { version: 1 as const, operations: {} };
   const harPath = opts.har ?? (await findCapture(dir));
-  let recorded;
-  if (harPath) {
-    try {
-      recorded = analyzeHar(await readFile(harPath, "utf8")).operations;
-    } catch {
-      console.warn(`warning: could not read ${harPath}; recorded input values will not be replayed`);
-    }
-  }
+  const recorded = harPath ? await loadRecordedOperations(harPath) : undefined;
   let cookie = opts.cookie ?? process.env.SITE2API_COOKIE;
   if (!cookie && opts.profile) {
     // Cookies for the host the requests go to, as a browser would send them.
@@ -316,13 +322,12 @@ async function verifyDir(dir: string, opts: VerifyCliOptions): Promise<VerifyRep
   const report = await verify(catalog, annotations, {
     credentials: { cookie, bearer: process.env.SITE2API_BEARER },
     baseUrl: opts.baseUrl,
-    rate: Number(opts.rate),
+    rate,
     inputs: parseInputs(opts.input ?? []),
     recorded,
   });
   const text = JSON.stringify(report, null, 2) + "\n";
-  const fp = await loadFingerprint(dir);
-  if (fp) assertNoFingerprintedSecrets(text, fp, VERIFY_FILE);
+  assertNoFingerprintedSecrets(text, fp, VERIFY_FILE);
   await writeFile(join(dir, VERIFY_FILE), text);
   printVerify(report);
   console.log(`wrote ${join(dir, VERIFY_FILE)}`);

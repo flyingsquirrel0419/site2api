@@ -21,9 +21,11 @@ SITE2API_COOKIE='<Cookie header>' site2api verify out
 ## What is called
 
 Only operations that become read tools. Writes (`kind: write`) and logins or token endpoints
-(`kind: auth`) are never called, whatever the annotations say about including them.
+(`kind: auth`) are never called, whatever the annotations say about including them. A POST whose
+path looks like a search is a write until annotations set `kind` to `read`.
 
-Requests are rate-limited to 1 per second by default (`--rate`).
+Requests are rate-limited to 1 per second by default (`--rate`). `--rate` must be a finite number
+>= 0. If the capture cannot be read, verify stops instead of calling the site without it.
 
 ## Where inputs come from
 

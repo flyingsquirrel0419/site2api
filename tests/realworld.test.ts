@@ -6,6 +6,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildTools } from "../src/generate/tools.js";
+import { validateAnnotations } from "../src/infer/annotations.js";
 import { analyzeHar } from "../src/pipeline.js";
 import { HttpClient } from "../src/runtime/http.js";
 import { readCatalog } from "../src/spec/catalog.js";
@@ -167,14 +168,21 @@ describe("API keys in headers", () => {
 });
 
 describe("default kinds", () => {
-  it("treats a POST to a lookup path as a read, and other POSTs as writes", () => {
+  it("keeps a POST to a lookup path as a write until an annotation says it only reads", () => {
     const catalog = readCatalog(analyzeHar(capture("https://search.example.com")).spec);
     const tools = buildTools(catalog, { version: 1, operations: {} });
-    expect(tools.tools.map((t) => [t.operationId, t.kind])).toEqual([["post_query", "read"]]);
+    expect(tools.tools).toEqual([]);
+    expect(tools.skipped).toEqual([{ operationId: "post_query", reason: "changes data (re-run generate with --allow-writes)" }]);
 
-    const cart = har([1, 2].map((n) => ({ method: "POST", url: "https://shop.example.com/api/cart", requestBody: { productId: n } })));
-    expect(buildTools(readCatalog(analyzeHar(cart).spec), { version: 1, operations: {} }).skipped).toEqual([
+    const opted = buildTools(catalog, { version: 1, operations: { post_query: { kind: "read" } } });
+    expect(opted.tools.map((t) => [t.operationId, t.kind])).toEqual([["post_query", "read"]]);
+    expect(validateAnnotations({ version: 1, operations: { post_query: { kind: "read" } } }, catalog).ok).toBe(true);
+
+    const cartHar = har([1, 2].map((n) => ({ method: "POST", url: "https://shop.example.com/api/cart", requestBody: { productId: n } })));
+    const cart = readCatalog(analyzeHar(cartHar).spec);
+    expect(buildTools(cart, { version: 1, operations: {} }).skipped).toEqual([
       { operationId: "post_cart", reason: "changes data (re-run generate with --allow-writes)" },
     ]);
+    expect(validateAnnotations({ version: 1, operations: { post_cart: { kind: "read" } } }, cart).ok).toBe(false);
   });
 });

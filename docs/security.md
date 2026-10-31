@@ -24,6 +24,8 @@ the recording and `secrets.json` are `0600`.
 `Authorization` headers, CSRF and API-key headers, query parameters and JSON fields with sensitive
 names (password, pwd, token, secret, session, key, sig, code, …), including everything under such a
 field, string arguments with those names inside GraphQL queries, and the URL-decoded form of each.
+Values shorter than 6 characters are ignored when they are plain words (`dark`, `true`). A value
+of 4 or 5 characters is still tracked when it contains a digit or mixed case (`abc12`).
 Constant inputs only become defaults when none of these rules apply, and short opaque path
 segments (`/share/MagicTok9x7Q`) become parameters. The spec and report are checked against them
 directly. For later stages, which no longer have the capture, it stores salted hashes; every file
@@ -35,7 +37,9 @@ site2api: Refusing to write tools.json: it contains 1 value(s) captured as crede
 ```
 
 This catches a cookie pasted into an annotation description, or a key that a site echoes in a
-response field.
+response field. `infer`, `verify`, and `generate` refuse to run when `.site2api/secrets.json` is
+missing, so the check cannot be skipped by deleting that file. `generate --unsafe-no-fingerprint`
+is the explicit bypass and prints a warning.
 
 ## What leaves your machine
 
@@ -62,10 +66,14 @@ site2api enforces itself.
 
 Write operations are excluded unless you pass `--allow-writes`. Included ones require
 `confirm: true` on every call and are marked destructive for MCP clients. `verify` never calls
-them. `annotations.json` can mark an operation `write` or `auth`, but not `read` unless site2api
-also considers it a read (or it is a GET): an annotation can never remove the confirm step or make
-`verify` call something that changes data. Path inputs cannot be `.` or `..`, so a tool cannot be
-pointed at a different endpoint.
+them. A POST whose path ends in `search`, `query`, `find`, or a similar lookup name is a write
+until `annotations.json` sets `kind` to `read`. Other writes, GraphQL mutations, and login
+operations cannot be marked `read`. Path inputs cannot be `.` or `..`, and cannot contain `/`,
+`\`, `..`, or the encodings `%2e` and `%2f`, so one parameter cannot point the tool at a different
+endpoint.
+
+The generated server reads only the `tools.json` next to `server.mjs`. `SITE2API_TOOLS` cannot
+name another file: that file could keep your API key env vars and send them to a different host.
 
 ## What site2api will not do
 

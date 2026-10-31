@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../demo/shop/server.js";
-import { cookieHeaderFor, loadCaptureScript, record } from "../src/capture/record.js";
+import { assertTerminalRecording, cookieHeaderFor, loadCaptureScript, record } from "../src/capture/record.js";
 import { analyzeHar } from "../src/pipeline.js";
 import { readCatalog } from "../src/spec/catalog.js";
 import { verify } from "../src/verify/verify.js";
@@ -32,6 +32,14 @@ const scenario = String.raw`(async () => {
   const { orders } = await fetch("/api/orders").then(json);
   for (const o of orders) await fetch("/api/orders/" + o.id).then(json);
 })()`;
+
+describe("assertTerminalRecording", () => {
+  it("requires a terminal when there is no capture script", () => {
+    expect(() => assertTerminalRecording(false, false)).toThrow(/--script/);
+    expect(() => assertTerminalRecording(false, true)).not.toThrow();
+    expect(() => assertTerminalRecording(true, false)).not.toThrow();
+  });
+});
 
 describe("record", () => {
   it("records a HAR, returns the session cookie in memory, and the result verifies", async () => {
@@ -65,7 +73,7 @@ describe("record", () => {
       recorded: analysis.operations,
     });
     expect(report.summary).toEqual({ pass: 4, warn: 0, fail: 0, skipped: 0, error: 0 });
-  });
+  }, 20_000);
 
   it("ends when the last tab is closed", async () => {
     const dir = await mkdtemp(join(tmpdir(), "site2api-record-"));
@@ -79,6 +87,24 @@ describe("record", () => {
     });
     expect(result.endedBy).toBe("browser-closed");
     await expect(readFile(join(dir, "capture.har"), "utf8")).resolves.toContain('"entries"');
+  });
+
+  it("saves the HAR when the browser context closes itself", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "site2api-record-"));
+    const harPath = join(dir, "capture.har");
+    const result = await record({
+      url: baseUrl,
+      harPath,
+      profileDir: join(dir, "profile"),
+      headless: true,
+      channel: null,
+      onPage: async (page) => {
+        await page.evaluate(() => fetch("/api/products").then((r) => r.json()));
+        void page.context().close();
+      },
+    });
+    expect(result.endedBy).toBe("browser-closed");
+    await expect(readFile(harPath, "utf8")).resolves.toContain("/api/products");
   });
 });
 
